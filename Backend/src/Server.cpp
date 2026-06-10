@@ -206,56 +206,25 @@ int main()
 
    auto createHardwareConfigRequest = [&](const httplib::Request& req, httplib::Response& res)
    {
-      json j = json::parse(req.body, nullptr, false);
+      EntityDescriptor machineEntity;
 
-      if (j.is_discarded())
+      machineEntity.table = "HardwareConfiguration";
+
+      machineEntity.insertFields = {
+         "Name", "MachineId", "CpuFreqGhz", "GpuFreqMhz", "RamFreqMhz", "Settings"
+      };
+
+      machineEntity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
       {
-         res.status = 400;
-         res.set_content("{\"error\":\"Invalid JSON\"}", "application/json");
-         return;
-      }
+         sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
+         sqlite3_bind_int(stmt, 2, j.value("machineId", -1));
+         sqlite3_bind_double(stmt, 3, j.value("cpuFreqGhz", 0.0));
+         sqlite3_bind_double(stmt, 4, j.value("gpuFreqMhz", 0.0));
+         sqlite3_bind_double(stmt, 5, j.value("ramFreqMhz", 0.0));
+         sqlite3_bind_text(stmt, 6, j.value("settings", "").c_str(), -1, SQLITE_TRANSIENT);
+      };
 
-      int machineId = j.value("machineId", -1);
-      std::string name = j.value("name", "");
-
-      if (machineId < 0 || name.empty())
-      {
-         res.status = 400;
-         res.set_content("{\"error\":\"Missing fields\"}", "application/json");
-         return;
-      }
-
-      double cpuFreq = j.value("cpuFreqGhz", 0.0);
-      double gpuFreq = j.value("gpuFreqMhz", 0.0);
-      double ramFreq = j.value("ramFreqMhz", 0.0);
-
-      json settings = j.value("settings", json::object());
-
-      std::string sql =
-         "INSERT INTO HardwareConfiguration "
-         "(MachineId, Name, CpuFreqGhz, GpuFreqMhz, RamFreqMhz, Settings) VALUES ("
-         + std::to_string(machineId) + ", '" +
-         name + "', " +
-         std::to_string(cpuFreq) + ", " +
-         std::to_string(gpuFreq) + ", " +
-         std::to_string(ramFreq) + ", '" +
-         settings.dump() + "');";
-
-      auto errorMsg = db.Execute(sql);
-      if (errorMsg.has_value())
-      {
-         json jsonError;
-         jsonError["error"] = sqlite3_errmsg(db.GetHandle());
-
-         res.status = 500;
-         res.set_content(jsonError.dump(3), "application/json");
-         return;
-      }
-
-      json out;
-      out["id"] = db.GetLastInsertId();
-
-      res.set_content(out.dump(), "application/json");
+      InsertEntity(db, machineEntity, req, res);
    };
 
    auto listHardwareConfigsRequest = [&](const httplib::Request&, httplib::Response& res)

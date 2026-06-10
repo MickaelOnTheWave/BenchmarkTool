@@ -12,8 +12,8 @@ CREATE TABLE Machine (
 
 CREATE TABLE HardwareConfiguration (
     Id INTEGER PRIMARY KEY,
-    MachineId INTEGER NOT NULL,
     Name TEXT NOT NULL,
+    MachineId INTEGER NOT NULL,
 
     CpuFreqGhz REAL,
     GpuFreqMhz REAL,
