@@ -227,47 +227,26 @@ int main()
 
    auto listHardwareConfigsRequest = [&](const httplib::Request&, httplib::Response& res)
    {
-      json j;
-      j["configs"] = json::array();
-
-      const char* sql =
-         "SELECT Id, MachineId, Name, CpuFreqGhz, GpuFreqMhz, RamFreqMhz, Settings "
-         "FROM HardwareConfiguration;";
-
-      sqlite3_stmt* stmt;
-
-      if (sqlite3_prepare_v2(db.GetHandle(), sql, -1, &stmt, nullptr) != SQLITE_OK)
+      EntityDescriptor entity;
+      entity.rootField = "configs";
+      entity.table = "HardwareConfiguration";
+      entity.fields = "Id, Name, MachineId, CpuFreqGhz, GpuFreqMhz, RamFreqMhz, Settings";
+      entity.mapper = [](sqlite3_stmt* sqlStatement, json& jsonObj)
       {
-         res.status = 500;
-         res.set_content("{\"error\":\"Query failed\"}", "application/json");
-         return;
-      }
-
-      while (sqlite3_step(stmt) == SQLITE_ROW)
-      {
-         json c;
-
-         c["id"] = sqlite3_column_int(stmt, 0);
-         c["machineId"] = sqlite3_column_int(stmt, 1);
-         c["name"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-         c["cpuFreqGhz"] = sqlite3_column_double(stmt, 3);
-         c["gpuFreqMhz"] = sqlite3_column_double(stmt, 4);
-         c["ramFreqMhz"] = sqlite3_column_double(stmt, 5);
+         jsonObj["machineId"] = sqlite3_column_int(sqlStatement, 2);
+         jsonObj["cpuFreqGhz"] = sqlite3_column_double(sqlStatement, 3);
+         jsonObj["gpuFreqMhz"] = sqlite3_column_double(sqlStatement, 4);
+         jsonObj["ramFreqMhz"] = sqlite3_column_double(sqlStatement, 5);
 
          const char* settingsText =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6));
+            reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 6));
 
          if (settingsText)
-            c["settings"] = json::parse(settingsText, nullptr, false);
+            jsonObj["settings"] = json::parse(settingsText, nullptr, false);
          else
-            c["settings"] = json::object();
-
-         j["configs"].push_back(c);
-      }
-
-      sqlite3_finalize(stmt);
-
-      res.set_content(j.dump(3), "application/json");
+            jsonObj["settings"] = json::object();
+      };
+      ListEntities(db, entity, res);
    };
 
    svr.Get("/ui/index.html", rootRequest);
