@@ -5,6 +5,60 @@
 #include "Database.h"
 
 using json = nlohmann::json;
+using namespace std;
+
+struct EntityDescriptor
+{
+   std::string table;
+   std::string fields;
+   std::string rootField;
+
+   std::function<void(sqlite3_stmt*, json&)> mapper;
+};
+
+json ListEntities(Database& db, EntityDescriptor& entity)
+{
+   json returnedJson;
+   returnedJson[entity.rootField] = json::array();
+
+   sqlite3_stmt* sqlStatement = nullptr;
+   const string selectCommand = "SELECT " + entity.fields + " FROM " + entity.table + ";";
+
+   if (sqlite3_prepare_v2(db.GetHandle(), selectCommand.c_str(), -1, &sqlStatement, nullptr) != SQLITE_OK)
+   {
+      json jsonError;
+      jsonError["error"] = sqlite3_errmsg(db.GetHandle());
+      return jsonError;
+   }
+
+   while (sqlite3_step(sqlStatement) == SQLITE_ROW)
+   {
+      json jsonEntry;
+
+      // Contract:
+      // column 0 = id
+      // column 1 = name
+      assert(sqlite3_column_count(sqlStatement) >= 2);
+
+      jsonEntry["id"] = sqlite3_column_int(sqlStatement, 0);
+      jsonEntry["name"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 1));
+      entity.mapper(sqlStatement, jsonEntry);
+
+      returnedJson[entity.rootField].push_back(jsonEntry);
+   }
+
+   sqlite3_finalize(sqlStatement);
+   return returnedJson;
+}
+
+void ListEntities(Database& db, EntityDescriptor& entity, httplib::Response& res)
+{
+   json returnedJson = ListEntities(db, entity);
+   if (returnedJson.contains("error"))
+      res.status = 500;
+   res.set_content(returnedJson.dump(3), "application/json");
+}
+
 
 int main()
 {
@@ -38,41 +92,18 @@ int main()
 
    auto listMachinesRequest = [&](const httplib::Request&, httplib::Response& res)
    {
-     json j;
-     j["machines"] = json::array();
-
-     sqlite3_stmt* stmt = nullptr;
-
-     const char* sql =
-        "SELECT Id, Name, Cpu, Gpu, RamGb, Motherboard FROM Machine;";
-
-     if (sqlite3_prepare_v2(db.GetHandle(), sql, -1, &stmt, nullptr) != SQLITE_OK)
-     {
-        json jsonError;
-        jsonError["error"] = sqlite3_errmsg(db.GetHandle());
-
-        res.status = 500;
-        res.set_content(jsonError.dump(3), "application/json");
-        return;
-     }
-
-     while (sqlite3_step(stmt) == SQLITE_ROW)
-     {
-        json m;
-
-        m["id"] = sqlite3_column_int(stmt, 0);
-        m["name"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-        m["cpu"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-        m["gpu"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
-        m["ramGb"] = sqlite3_column_int(stmt, 4);
-        m["motherboard"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
-
-        j["machines"].push_back(m);
-     }
-
-     sqlite3_finalize(stmt);
-
-     res.set_content(j.dump(3), "application/json");
+      EntityDescriptor entity;
+      entity.rootField = "machines";
+      entity.table = "Machine";
+      entity.fields = "Id, Name, Cpu, Gpu, RamGb, Motherboard";
+      entity.mapper = [](sqlite3_stmt* sqlStatement, json& jsonObj)
+      {
+         jsonObj["cpu"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 2));
+         jsonObj["gpu"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 3));
+         jsonObj["ramGb"] = sqlite3_column_int(sqlStatement, 4);
+         jsonObj["motherboard"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 5));
+      };
+      ListEntities(db, entity, res);
    };
 
    auto createMachineRequest = [&](const httplib::Request& req, httplib::Response& res)
