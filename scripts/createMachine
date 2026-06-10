@@ -1,0 +1,9 @@
+curl -X POST http://localhost:8080/api/create-machine \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Workstation Alpha",
+    "cpu": "Ryzen 9 7950X",
+    "gpu": "RTX 4090",
+    "ramGb": 64,
+    "motherboard": "ASUS X670E Hero"
+  }'

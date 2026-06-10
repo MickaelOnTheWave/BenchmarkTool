@@ -204,29 +204,6 @@ int main()
       InsertEntity(db, machineEntity, req, res);
    };
 
-   auto createHardwareConfigRequest = [&](const httplib::Request& req, httplib::Response& res)
-   {
-      EntityDescriptor machineEntity;
-
-      machineEntity.table = "HardwareConfiguration";
-
-      machineEntity.insertFields = {
-         "Name", "MachineId", "CpuFreqGhz", "GpuFreqMhz", "RamFreqMhz", "Settings"
-      };
-
-      machineEntity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
-      {
-         sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
-         sqlite3_bind_int(stmt, 2, j.value("machineId", -1));
-         sqlite3_bind_double(stmt, 3, j.value("cpuFreqGhz", 0.0));
-         sqlite3_bind_double(stmt, 4, j.value("gpuFreqMhz", 0.0));
-         sqlite3_bind_double(stmt, 5, j.value("ramFreqMhz", 0.0));
-         sqlite3_bind_text(stmt, 6, j.value("settings", "").c_str(), -1, SQLITE_TRANSIENT);
-      };
-
-      InsertEntity(db, machineEntity, req, res);
-   };
-
    auto listHardwareConfigsRequest = [&](const httplib::Request&, httplib::Response& res)
    {
       EntityDescriptor entity;
@@ -251,13 +228,212 @@ int main()
       ListEntities(db, entity, res);
    };
 
+   auto createHardwareConfigRequest = [&](const httplib::Request& req, httplib::Response& res)
+   {
+      EntityDescriptor machineEntity;
+
+      machineEntity.table = "HardwareConfiguration";
+
+      machineEntity.insertFields = {
+         "Name", "MachineId", "CpuFreqGhz", "GpuFreqMhz", "RamFreqMhz", "Settings"
+      };
+
+      machineEntity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
+      {
+         sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
+         sqlite3_bind_int(stmt, 2, j.value("machineId", -1));
+         sqlite3_bind_double(stmt, 3, j.value("cpuFreqGhz", 0.0));
+         sqlite3_bind_double(stmt, 4, j.value("gpuFreqMhz", 0.0));
+         sqlite3_bind_double(stmt, 5, j.value("ramFreqMhz", 0.0));
+         sqlite3_bind_text(stmt, 6, j.value("settings", "").c_str(), -1, SQLITE_TRANSIENT);
+      };
+
+      InsertEntity(db, machineEntity, req, res);
+   };
+
+   auto listSoftwareEnvironmentsRequest = [&](const httplib::Request&, httplib::Response& res)
+   {
+      EntityDescriptor entity;
+
+      entity.rootField = "softwareEnvironments";
+      entity.table = "SoftwareEnvironment";
+      entity.fields = "Id, Name, Os, OsVersion, DriverFamily";
+
+      entity.selectMapper = [](sqlite3_stmt* stmt, json& obj)
+      {
+         obj["os"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+         obj["osVersion"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+         obj["driverFamily"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+      };
+
+      ListEntities(db, entity, res);
+   };
+
+   auto createSoftwareEnvironmentRequest = [&](const httplib::Request& req, httplib::Response& res)
+   {
+      EntityDescriptor entity;
+
+      entity.table = "SoftwareEnvironment";
+
+      entity.insertFields = {
+         "Name",
+         "Os",
+         "OsVersion",
+         "DriverFamily"
+      };
+
+      entity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
+      {
+         sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
+         sqlite3_bind_text(stmt, 2, j.value("os", "").c_str(), -1, SQLITE_TRANSIENT);
+         sqlite3_bind_text(stmt, 3, j.value("osVersion", "").c_str(), -1, SQLITE_TRANSIENT);
+         sqlite3_bind_text(stmt, 4, j.value("driverFamily", "").c_str(), -1, SQLITE_TRANSIENT);
+      };
+
+      InsertEntity(db, entity, req, res);
+   };
+
+   auto listSoftwareConfigsRequest = [&](const httplib::Request&, httplib::Response& res)
+   {
+      EntityDescriptor entity;
+
+      entity.rootField = "softwareConfigurations";
+      entity.table = "SoftwareConfiguration";
+      entity.fields =
+         "Id, Name, SoftwareEnvironmentId, DriverVersion, Mode, Settings";
+
+      entity.selectMapper = [](sqlite3_stmt* stmt, json& obj)
+      {
+         obj["softwareEnvironmentId"] = sqlite3_column_int(stmt, 2);
+         obj["driverVersion"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+         obj["mode"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+         obj["settings"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
+      };
+
+      ListEntities(db, entity, res);
+   };
+
+   auto createSoftwareConfigRequest = [&](const httplib::Request& req, httplib::Response& res)
+   {
+      EntityDescriptor entity;
+
+      entity.table = "SoftwareConfiguration";
+
+      entity.insertFields = {
+         "Name",
+         "SoftwareEnvironmentId",
+         "DriverVersion",
+         "Mode",
+         "Settings"
+      };
+
+      entity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
+      {
+         sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
+         sqlite3_bind_int(stmt, 2, j.value("softwareEnvironmentId", 0));
+         sqlite3_bind_text(stmt, 3, j.value("driverVersion", "").c_str(), -1, SQLITE_TRANSIENT);
+         sqlite3_bind_text(stmt, 4, j.value("mode", "").c_str(), -1, SQLITE_TRANSIENT);
+         sqlite3_bind_text(stmt, 5, j.value("settings", "{}").c_str(), -1, SQLITE_TRANSIENT);
+      };
+
+      InsertEntity(db, entity, req, res);
+   };
+
+   auto listTestsRequest = [&](const httplib::Request&, httplib::Response& res)
+   {
+      EntityDescriptor entity;
+
+      entity.rootField = "tests";
+      entity.table = "Test";
+      entity.fields = "Id, Name, Description, IconPath";
+
+      entity.selectMapper = [](sqlite3_stmt* stmt, json& obj)
+      {
+         obj["description"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+         obj["iconPath"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+      };
+
+      ListEntities(db, entity, res);
+   };
+
+   auto createTestRequest = [&](const httplib::Request& req, httplib::Response& res)
+   {
+      EntityDescriptor entity;
+
+      entity.table = "Test";
+
+      entity.insertFields = {
+         "Name",
+         "Description",
+         "IconPath"
+      };
+
+      entity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
+      {
+         sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
+         sqlite3_bind_text(stmt, 2, j.value("description", "").c_str(), -1, SQLITE_TRANSIENT);
+         sqlite3_bind_text(stmt, 3, j.value("iconPath", "").c_str(), -1, SQLITE_TRANSIENT);
+      };
+
+      InsertEntity(db, entity, req, res);
+   };
+
+   auto listTestConfigsRequest = [&](const httplib::Request&, httplib::Response& res)
+   {
+      EntityDescriptor entity;
+
+      entity.rootField = "testConfigurations";
+      entity.table = "TestConfiguration";
+      entity.fields = "Id, Name, TestId, Settings";
+
+      entity.selectMapper = [](sqlite3_stmt* stmt, json& obj)
+      {
+         obj["testId"] = sqlite3_column_int(stmt, 2);
+         obj["settings"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+      };
+
+      ListEntities(db, entity, res);
+   };
+
+   auto createTestConfigRequest = [&](const httplib::Request& req, httplib::Response& res)
+   {
+      EntityDescriptor entity;
+
+      entity.table = "TestConfiguration";
+
+      entity.insertFields = {
+         "Name",
+         "TestId",
+         "Settings"
+      };
+
+      entity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
+      {
+         sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
+         sqlite3_bind_int(stmt, 2, j.value("testId", 0));
+         sqlite3_bind_text(stmt, 3, j.value("settings", "{}").c_str(), -1, SQLITE_TRANSIENT);
+      };
+
+      InsertEntity(db, entity, req, res);
+   };
+
+
    svr.Get("/ui/index.html", rootRequest);
    svr.Get("/api/db-status", dbStatusRequest);
+
    svr.Get("/api/list-machines", listMachinesRequest);
    svr.Get("/api/list-hardware-configs", listHardwareConfigsRequest);
+   svr.Get("/api/list-software-environments", listSoftwareEnvironmentsRequest);
+   svr.Get("/api/list-software-configs", listSoftwareConfigsRequest);
+   svr.Get("/api/list-tests", listTestsRequest);
+   svr.Get("/api/list-test-configs", listTestConfigsRequest);
 
    svr.Post("/api/create-machine", createMachineRequest);
    svr.Post("/api/create-hardware-config", createHardwareConfigRequest);
+   svr.Post("/api/create-software-environment", createSoftwareEnvironmentRequest);
+   svr.Post("/api/create-software-config", createSoftwareConfigRequest);
+   svr.Post("/api/create-test", createTestRequest);
+   svr.Post("/api/create-test-config", createTestConfigRequest);
 
    std::cout << "Backend server running on http://localhost:8080\n";
    svr.listen("localhost", 8080);

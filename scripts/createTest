@@ -1,0 +1,7 @@
+curl -X POST http://localhost:8080/api/create-test \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "3DMark Steel Nomad",
+    "description": "Modern DX12 benchmark",
+    "iconPath": "icons/steel-nomad.png"
+  }'

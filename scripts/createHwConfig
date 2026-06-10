@@ -1,0 +1,10 @@
+curl -X POST http://localhost:8080/api/create-hardware-config \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "OC Profile - Gaming Stable",
+    "machineId": 1,
+    "cpuFreqGhz": 5.2,
+    "gpuFreqMhz": 2850,
+    "ramFreqMhz": 6200,
+    "settings": "{\"pbo\":true,\"curveOptimizer\":-20,\"xmp\":true}"
+  }'

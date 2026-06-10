@@ -27,6 +27,8 @@ CREATE TABLE HardwareConfiguration (
 
 CREATE TABLE SoftwareEnvironment (
     Id INTEGER PRIMARY KEY,
+    Name TEXT NOT NULL,
+
     Os TEXT NOT NULL,
     OsVersion TEXT,
     DriverFamily TEXT NOT NULL
@@ -35,8 +37,9 @@ CREATE TABLE SoftwareEnvironment (
 
 CREATE TABLE SoftwareConfiguration (
     Id INTEGER PRIMARY KEY,
-    SoftwareEnvironmentId INTEGER NOT NULL,
     Name TEXT NOT NULL,
+
+    SoftwareEnvironmentId INTEGER NOT NULL,
 
     DriverVersion TEXT NOT NULL,
     Mode TEXT,
@@ -57,8 +60,9 @@ CREATE TABLE Test (
 
 CREATE TABLE TestConfiguration (
     Id INTEGER PRIMARY KEY,
-    TestId INTEGER NOT NULL,
     Name TEXT NOT NULL,
+
+    TestId INTEGER NOT NULL,
 
     Settings TEXT, -- JSON blob
 

@@ -1,0 +1,8 @@
+curl -X POST http://localhost:8080/api/create-software-environment \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Gaming Environment",
+    "os": "Windows 11",
+    "osVersion": "24H2",
+    "driverFamily": "NVIDIA"
+  }'

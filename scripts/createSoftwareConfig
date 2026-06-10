@@ -1,0 +1,9 @@
+curl -X POST http://localhost:8080/api/create-software-config \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "NVIDIA Gaming Driver",
+    "softwareEnvironmentId": 1,
+    "driverVersion": "576.80",
+    "mode": "Maximum Performance",
+    "settings": "{\"shaderCache\":\"Unlimited\",\"vsync\":\"Off\"}"
+  }'

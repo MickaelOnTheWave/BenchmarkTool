@@ -1,0 +1,7 @@
+curl -X POST http://localhost:8080/api/create-test-config \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "4K Default",
+    "testId": 1,
+    "settings": "{\"resolution\":\"3840x2160\",\"quality\":\"default\"}"
+  }'
