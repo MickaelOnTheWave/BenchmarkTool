@@ -13,7 +13,10 @@ struct EntityDescriptor
    std::string fields;
    std::string rootField;
 
-   std::function<void(sqlite3_stmt*, json&)> mapper;
+   std::function<void(sqlite3_stmt*, json&)> selectMapper;
+
+   std::vector<std::string> insertFields;
+   std::function<void(sqlite3_stmt*, const json&)> insertBinder;
 };
 
 json ListEntities(Database& db, EntityDescriptor& entity)
@@ -42,7 +45,7 @@ json ListEntities(Database& db, EntityDescriptor& entity)
 
       jsonEntry["id"] = sqlite3_column_int(sqlStatement, 0);
       jsonEntry["name"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 1));
-      entity.mapper(sqlStatement, jsonEntry);
+      entity.selectMapper(sqlStatement, jsonEntry);
 
       returnedJson[entity.rootField].push_back(jsonEntry);
    }
@@ -57,6 +60,79 @@ void ListEntities(Database& db, EntityDescriptor& entity, httplib::Response& res
    if (returnedJson.contains("error"))
       res.status = 500;
    res.set_content(returnedJson.dump(3), "application/json");
+}
+
+std::string BuildSqlInsertQuery(const EntityDescriptor& entity)
+{
+   std::string sql = "INSERT INTO " + entity.table + " (";
+
+   for (size_t i = 0; i < entity.insertFields.size(); i++)
+   {
+      sql += entity.insertFields[i];
+      if (i + 1 < entity.insertFields.size())
+         sql += ", ";
+   }
+
+   sql += ") VALUES (";
+
+   for (size_t i = 0; i < entity.insertFields.size(); i++)
+   {
+      sql += "?";
+      if (i + 1 < entity.insertFields.size())
+         sql += ", ";
+   }
+
+   sql += ");";
+   return sql;
+}
+
+std::optional<std::string> InsertEntity(Database& db, const EntityDescriptor& entity, const json& input)
+{
+   const std::string insertQuery = BuildSqlInsertQuery(entity);
+
+   sqlite3_stmt* stmt = nullptr;
+
+   if (sqlite3_prepare_v2(db.GetHandle(), insertQuery.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+      return sqlite3_errmsg(db.GetHandle());
+
+   entity.insertBinder(stmt, input);
+
+   if (sqlite3_step(stmt) != SQLITE_DONE)
+   {
+      std::string err = sqlite3_errmsg(db.GetHandle());
+      sqlite3_finalize(stmt);
+      return err;
+   }
+
+   sqlite3_finalize(stmt);
+   return std::nullopt;
+}
+
+void InsertEntity(Database& db, const EntityDescriptor& entity, const httplib::Request& req, httplib::Response& res)
+{
+   json response;
+   json request = json::parse(req.body, nullptr, false);
+   if (request.is_discarded())
+   {
+      res.status = 400;
+      response["status"] = "error";
+      response["message"] = "Invalid JSON";
+      res.set_content(response.dump(), "application/json");
+      return;
+   }
+
+   auto insertResult = InsertEntity(db, entity, request);
+   if (insertResult.has_value())
+   {
+      res.status = 500;
+      response["status"] = "error";
+      response["message"] = insertResult.value();
+      res.set_content(response.dump(), "application/json");
+      return;
+   }
+
+   response["status"] = "ok";
+   res.set_content(response.dump(), "application/json");
 }
 
 
@@ -96,7 +172,7 @@ int main()
       entity.rootField = "machines";
       entity.table = "Machine";
       entity.fields = "Id, Name, Cpu, Gpu, RamGb, Motherboard";
-      entity.mapper = [](sqlite3_stmt* sqlStatement, json& jsonObj)
+      entity.selectMapper = [](sqlite3_stmt* sqlStatement, json& jsonObj)
       {
          jsonObj["cpu"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 2));
          jsonObj["gpu"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 3));
@@ -108,67 +184,24 @@ int main()
 
    auto createMachineRequest = [&](const httplib::Request& req, httplib::Response& res)
    {
-      json j = json::parse(req.body, nullptr, false);
+      EntityDescriptor machineEntity;
 
-      if (j.is_discarded())
+      machineEntity.table = "Machine";
+
+      machineEntity.insertFields = {
+         "Name", "Cpu", "Gpu", "RamGb", "Motherboard"
+      };
+
+      machineEntity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
       {
-         res.status = 400;
-         res.set_content("{\"error\":\"Invalid JSON\"}", "application/json");
-         return;
-      }
+         sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
+         sqlite3_bind_text(stmt, 2, j.value("cpu", "").c_str(), -1, SQLITE_TRANSIENT);
+         sqlite3_bind_text(stmt, 3, j.value("gpu", "").c_str(), -1, SQLITE_TRANSIENT);
+         sqlite3_bind_int(stmt, 4, j.value("ramGb", 0));
+         sqlite3_bind_text(stmt, 5, j.value("motherboard", "").c_str(), -1, SQLITE_TRANSIENT);
+      };
 
-      std::string name = j.value("name", "");
-      std::string cpu = j.value("cpu", "");
-      std::string gpu = j.value("gpu", "");
-      int ramGb = j.value("ramGb", 0);
-      std::string motherboard = j.value("motherboard", "");
-
-      if (name.empty())
-      {
-         res.status = 400;
-         res.set_content("{\"error\":\"Missing name\"}", "application/json");
-         return;
-      }
-
-      // --------------------------
-      // Check duplicate name
-      // --------------------------
-      int existingId = -1;
-      if (db.QueryInt("SELECT Id FROM Machine WHERE Name = '" + name + "';", existingId))
-      {
-         json err;
-         err["error"] = "Machine name already exists";
-         res.status = 409;
-         res.set_content(err.dump(), "application/json");
-         return;
-      }
-
-      // --------------------------
-      // Insert machine
-      // --------------------------
-      std::string sql =
-         "INSERT INTO Machine (Name, Cpu, Gpu, RamGb, Motherboard) VALUES ('" +
-         name + "','" +
-         cpu + "','" +
-         gpu + "'," +
-         std::to_string(ramGb) + ",'" +
-         motherboard + "');";
-
-      auto err = db.Execute(sql);
-
-      if (err)
-      {
-         res.status = 500;
-         res.set_content("{\"error\":\"Insert failed\"}", "application/json");
-         return;
-      }
-
-      int id = db.GetLastInsertId();
-
-      json ok;
-      ok["id"] = id;
-
-      res.set_content(ok.dump(), "application/json");
+      InsertEntity(db, machineEntity, req, res);
    };
 
    auto createHardwareConfigRequest = [&](const httplib::Request& req, httplib::Response& res)
@@ -231,7 +264,7 @@ int main()
       entity.rootField = "configs";
       entity.table = "HardwareConfiguration";
       entity.fields = "Id, Name, MachineId, CpuFreqGhz, GpuFreqMhz, RamFreqMhz, Settings";
-      entity.mapper = [](sqlite3_stmt* sqlStatement, json& jsonObj)
+      entity.selectMapper = [](sqlite3_stmt* sqlStatement, json& jsonObj)
       {
          jsonObj["machineId"] = sqlite3_column_int(sqlStatement, 2);
          jsonObj["cpuFreqGhz"] = sqlite3_column_double(sqlStatement, 3);
