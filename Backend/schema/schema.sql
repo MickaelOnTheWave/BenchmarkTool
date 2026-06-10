@@ -1,0 +1,118 @@
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE Machine (
+    Id INTEGER PRIMARY KEY,
+    Name TEXT NOT NULL UNIQUE,
+    Cpu TEXT,
+    Gpu TEXT,
+    RamGb INTEGER,
+    Motherboard TEXT
+);
+
+
+CREATE TABLE HardwareConfiguration (
+    Id INTEGER PRIMARY KEY,
+    MachineId INTEGER NOT NULL,
+    Name TEXT NOT NULL,
+
+    CpuFreqGhz REAL,
+    GpuFreqMhz REAL,
+    RamFreqMhz REAL,
+
+    Settings TEXT, -- JSON blob for extra params
+
+    FOREIGN KEY (MachineId) REFERENCES Machine(Id)
+);
+
+
+CREATE TABLE SoftwareEnvironment (
+    Id INTEGER PRIMARY KEY,
+    Os TEXT NOT NULL,
+    OsVersion TEXT,
+    DriverFamily TEXT NOT NULL
+);
+
+
+CREATE TABLE SoftwareConfiguration (
+    Id INTEGER PRIMARY KEY,
+    SoftwareEnvironmentId INTEGER NOT NULL,
+    Name TEXT NOT NULL,
+
+    DriverVersion TEXT NOT NULL,
+    Mode TEXT,
+
+    Settings TEXT, -- JSON blob
+
+    FOREIGN KEY (SoftwareEnvironmentId) REFERENCES SoftwareEnvironment(Id)
+);
+
+
+CREATE TABLE Test (
+    Id INTEGER PRIMARY KEY,
+    Name TEXT NOT NULL,
+    Description TEXT,
+    IconPath TEXT
+);
+
+
+CREATE TABLE TestConfiguration (
+    Id INTEGER PRIMARY KEY,
+    TestId INTEGER NOT NULL,
+    Name TEXT NOT NULL,
+
+    Settings TEXT, -- JSON blob
+
+    FOREIGN KEY (TestId) REFERENCES Test(Id)
+);
+
+
+
+CREATE TABLE BenchmarkRun (
+    Id INTEGER PRIMARY KEY,
+
+    MachineId INTEGER NOT NULL,
+    HardwareConfigurationId INTEGER NOT NULL,
+
+    SoftwareEnvironmentId INTEGER NOT NULL,
+    SoftwareConfigurationId INTEGER NOT NULL,
+
+    TestId INTEGER NOT NULL,
+    TestConfigurationId INTEGER NOT NULL,
+
+    Timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (MachineId) REFERENCES Machine(Id),
+    FOREIGN KEY (HardwareConfigurationId) REFERENCES HardwareConfiguration(Id),
+    FOREIGN KEY (SoftwareEnvironmentId) REFERENCES SoftwareEnvironment(Id),
+    FOREIGN KEY (SoftwareConfigurationId) REFERENCES SoftwareConfiguration(Id),
+    FOREIGN KEY (TestId) REFERENCES Test(Id),
+    FOREIGN KEY (TestConfigurationId) REFERENCES TestConfiguration(Id)
+);
+
+
+CREATE TABLE Result (
+    Id INTEGER PRIMARY KEY,
+    RunId INTEGER NOT NULL UNIQUE,
+
+    AvgFps REAL,
+    MinFps REAL,
+    MaxFps REAL,
+    Score REAL,
+
+    FOREIGN KEY (RunId) REFERENCES BenchmarkRun(Id)
+);
+
+
+CREATE TABLE Origin (
+    Id INTEGER PRIMARY KEY,
+    RunId INTEGER NOT NULL UNIQUE,
+
+    OriginType TEXT NOT NULL, -- imported / manual
+    ExternalId TEXT,
+    SourceFile TEXT,
+    CreatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (RunId) REFERENCES BenchmarkRun(Id)
+);
+
+

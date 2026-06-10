@@ -1,0 +1,141 @@
+Record :
+- Hardware Environment
+- Hardware Parameters
+- Software Environment
+- Software Parameters
+- Test
+- Test Parameters
+- Result
+
+Result :
+- FPS (average / min / max)
+- CPU Temperature (average)
+- GPU Temperature (average)
+- Score (some tests provide a score)
+
+Hardware Environment:
+- CPU
+- GPU
+- RAM
+- Motherboard
+- Monitor
+
+Hardware Parameters:
+- CPU Frequency
+- GPU Frequency
+- RAM Frequency
+- Monitor (Resolution / Refresh rate)
+
+Software Environment:
+- OS
+- BIOS
+- Graphic Driver
+- Other (other software installed?)
+
+Software Parameters:
+- BIOS version
+- BIOS parameters
+- Graphic driver version
+- Graphic driver parameters
+- Other parameters (system wide)
+
+Test:
+- Name (3DMark Fire Test/ etc...)
+- Description
+
+Test Parameters:
+- AA algorithm used
+- Details level
+- Other (fine tuned options)
+
+
+Maybe implementation details :
+
+Origin of record:
+- original ID (for example for 3DMark imports)
+- type (imported / added manually)
+- original FIle
+- Date
+
+Origin of record is thinking of easing importing and avoiding elegantly duplicates. But this is probably an implementation detail.
+
+
+-------------- Revised with ChatGPT --------------------
+
+Benchmark Run
+│
+├── Machine
+│   ├── CPU
+│   ├── GPU
+│   ├── RAM
+│   ├── Motherboard
+│   └── Monitor
+│
+├── Hardware Configuration
+│   ├── CPU Frequency
+│   ├── GPU Frequency
+│   ├── RAM Frequency
+│   ├── Resolution
+│   ├── Refresh Rate
+│   └── Other Hardware Settings
+│
+├── Software Environment
+│   ├── Operating System
+│   ├── BIOS
+│   ├── Graphics Driver
+│   └── Other Software
+│
+├── Software Configuration
+│   ├── BIOS Version
+│   ├── BIOS Settings
+│   ├── Graphics Driver Version
+│   ├── Graphics Driver Settings
+│   └── Other System Settings
+│
+├── Test
+│   ├── Name
+│   └── Description
+│
+├── Test Configuration
+│   ├── Resolution
+│   ├── Quality Preset
+│   ├── Anti-Aliasing
+│   └── Other Test Settings
+│
+├── Result
+│   ├── Average FPS
+│   ├── Minimum FPS
+│   ├── Maximum FPS
+│   ├── CPU Temperature
+│   ├── GPU Temperature
+│   ├── Score
+│   └── Other Metrics
+│
+└── Origin
+    ├── Source Type
+    ├── Original File
+    ├── External ID
+    └── Import Date
+
+Machine
+│
+└── Hardware Configurations
+
+Software Environment
+│
+└── Software Configurations
+
+Test
+│
+└── Test Configurations
+
+Benchmark Run
+│
+├── Machine
+├── Hardware Configuration
+├── Software Environment
+├── Software Configuration
+├── Test
+├── Test Configuration
+├── Result
+└── Origin
