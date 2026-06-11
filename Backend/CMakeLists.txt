@@ -19,21 +19,16 @@ target_link_libraries(Backend PRIVATE
 )
 target_include_directories(Backend PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../web)
 
-set(PROJECT_FILES schema/schema.sql)
-add_custom_target(ProjectFiles SOURCES ${PROJECT_FILES})
-
-
-set(UI_FILES ui/index.html ui/style.css ui/app.js)
-add_custom_target(UiFiles SOURCES ${UI_FILES})
-
-add_custom_command(TARGET Backend POST_BUILD
-   COMMAND ${CMAKE_COMMAND} -E copy_if_different
-   ${CMAKE_CURRENT_SOURCE_DIR}/schema/schema.sql
-   $<TARGET_FILE_DIR:Backend>/schema.sql
-)
-
-add_custom_command(TARGET Backend POST_BUILD
+set(ASSET_FILES ui/index.html ui/style.css ui/app.js schema/schema.sql)
+set(RUNTIME_DIR ${CMAKE_BINARY_DIR}/Backend)
+add_custom_target(AssetFiles
    COMMAND ${CMAKE_COMMAND} -E copy_directory
-   ${CMAKE_CURRENT_SOURCE_DIR}/ui
-   $<TARGET_FILE_DIR:Backend>/ui
+     ${CMAKE_CURRENT_SOURCE_DIR}/ui
+     ${RUNTIME_DIR}/ui
+   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      ${CMAKE_CURRENT_SOURCE_DIR}/schema/schema.sql
+      ${RUNTIME_DIR}/schema.sql
+    SOURCES ${ASSET_FILES}
 )
+
+add_dependencies(Backend AssetFiles)

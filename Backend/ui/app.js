@@ -1,4 +1,4 @@
-function setView(view)
+async function setView(view)
 {
    const sections =
    [
@@ -16,7 +16,12 @@ function setView(view)
    document.getElementById(view + "Section").style.display = "block";
 
    if (view === "home")
-       loadMachines();
+   {
+        await loadMachines();
+       document.getElementById("addMachineBtn").onclick = () => {
+           console.log("Add machine clicked");
+       };
+   }
 }
 
 async function loadMachines()
@@ -69,3 +74,6 @@ function selectMachine(machine)
   // loadBenchmarkRuns(machine.id);
 }
 
+window.onload = () => {
+    setView('home');
+};

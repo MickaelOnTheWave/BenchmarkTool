@@ -7,6 +7,7 @@
 </head>
 
 <body>
+   <script src="/ui/app.js" type="module"></script>
 
    <div class="sidebar">
       <div class="menu-item" onclick="setView('home')">Home</div>
@@ -20,43 +21,50 @@
    <div class="content">
 
        <!-- HOME -->
-       <div id="homeSection">
+       <div id="homeSection" style="height:100%; display:block;">
 
-           <div style="display:grid; grid-template-columns:320px 1fr; grid-template-rows:auto 1fr; gap:12px; height:100%;">
+         <div style="display:grid; grid-template-columns:320px 1fr; grid-template-rows:auto 1fr; gap:12px; height:100%;">
 
-               <div style="border:1px solid #ccc; padding:8px; overflow-y:auto;">
-                   <div style="font-weight:bold; margin-bottom:8px;">Machines</div>
-                   <ul id="machineList" style="list-style:none; padding:0; margin:0;"></ul>
-               </div>
+             <!-- Machines list -->
+             <div style="border:1px solid #ccc; padding:8px; display:flex; flex-direction:column;">
 
-               <div style="border:1px solid #ccc; padding:8px;">
-                   <div style="font-weight:bold; margin-bottom:8px;">Selected Machine</div>
+                 <div style="font-weight:bold; margin-bottom:8px;">Machines</div>
 
-                   <div id="machineDetails">
-                       Select a machine
-                   </div>
-               </div>
+                 <ul id="machineList"
+                     style="list-style:none; padding:0; margin:0; flex:1; overflow:auto;">
+                 </ul>
 
-               <div style="grid-column:1 / span 2; border:1px solid #ccc; padding:8px; overflow:auto;">
-                   <div style="font-weight:bold; margin-bottom:8px;">Benchmark Runs</div>
+                 <button id="addMachineBtn" style="margin-top:8px;">
+                     + Add Machine
+                 </button>
 
-                   <table border="1" width="100%" id="runsTable">
-                       <thead>
-                           <tr>
-                               <th>Test</th>
-                               <th>Config</th>
-                               <th>Score</th>
-                               <th>Avg FPS</th>
-                               <th>Min FPS</th>
-                               <th>Max FPS</th>
-                           </tr>
-                       </thead>
+             </div>
 
-                       <tbody></tbody>
-                   </table>
-               </div>
+             <!-- Selected machine -->
+             <div style="border:1px solid #ccc; padding:8px;">
+                 <div style="font-weight:bold; margin-bottom:8px;">Selected Machine</div>
+                 <div id="machineDetails">Select a machine</div>
+             </div>
 
-           </div>
+             <!-- Runs -->
+             <div style="grid-column:1 / span 2; border:1px solid #ccc; padding:8px;">
+                 <div style="font-weight:bold; margin-bottom:8px;">Benchmark Runs</div>
+                 <table border="1" width="100%">
+                     <thead>
+                         <tr>
+                             <th>Test</th>
+                             <th>Config</th>
+                             <th>Score</th>
+                             <th>Avg FPS</th>
+                             <th>Min FPS</th>
+                             <th>Max FPS</th>
+                         </tr>
+                     </thead>
+                     <tbody id="runsTableBody"></tbody>
+                 </table>
+             </div>
+
+         </div>
 
        </div>
 
@@ -91,10 +99,5 @@
        </div>
 
    </div>
-
-  <script src="/ui/app.js"></script>
-  <script>
-  </script>
-
 </body>
 </html>
