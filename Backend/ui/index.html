@@ -62,6 +62,8 @@
                      </thead>
                      <tbody id="runsTableBody"></tbody>
                  </table>
+                 <button onclick="openRunDialog()">+ Add</button>
+                 <button onclick="openImportDialog()">Import</button>
              </div>
 
          </div>
@@ -125,5 +127,48 @@
          </div>
       </div>
    </div>
+
+   <div id="runDialog" class="modal" style="display:none;">
+     <div class="modal-content">
+       <h3>Add Benchmark Run</h3>
+
+       <label>Machine</label>
+       <select id="rMachine"></select>
+
+       <label>Hardware Config</label>
+       <select id="rHw"></select>
+
+       <label>Software Environment</label>
+       <select id="rEnv"></select>
+
+       <label>Software Config</label>
+       <select id="rSoft"></select>
+
+       <label>Test</label>
+       <select id="rTest"></select>
+
+       <label>Test Config</label>
+       <select id="rTestCfg"></select>
+
+       <label>Score</label>
+       <input id="rScore" type="number">
+
+       <label>Avg FPS</label>
+       <input id="rAvg" type="number">
+
+       <label>Min FPS</label>
+       <input id="rMin" type="number">
+
+       <label>Max FPS</label>
+       <input id="rMax" type="number">
+
+       <div style="margin-top:12px; display:flex; gap:8px;">
+         <button onclick="submitRun()">Create</button>
+         <button onclick="closeRunDialog()">Cancel</button>
+       </div>
+     </div>
+   </div>
+
+   <input type="file" id="importFile" style="display:none" onchange="handleImport(event)">
 </body>
 </html>

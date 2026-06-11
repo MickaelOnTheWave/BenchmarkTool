@@ -1,0 +1,9 @@
+1. Run data integrity + validation layer
+2. Import pipeline design (before coding it deeply)
+3. Add filters to backend api
+4. Define run query + API contract stabilization (small but crucial missing step)
+5. Implement 3DMark importer
+6. Consistent refresh model in frontend
+7. Use filter support in Frontend
+8. Add missing dialogs for data add (Frontend)
+9. Start adding options for displaying statistics / graphs / comparisons (Frontend)
