@@ -2,38 +2,93 @@
 
 using json = nlohmann::json;
 
+namespace
+{
+   void RequireString(const json& j, ErrorList& errors, const char* key)
+   {
+      if (!j.contains(key) || !j[key].is_string() || j[key].get<std::string>().empty())
+         errors.push_back(std::string(key) + " is required and must be a non-empty string");
+   }
+
+   void CheckOptionalString(const json& j, ErrorList& errors, const char* key)
+   {
+      if (j.contains(key) && !j[key].is_string())
+         errors.push_back(std::string(key) + " must be a string");
+   };
+
+   void RequirePositiveInt(const json& j, ErrorList& errors, const char* key)
+   {
+      if (!j.contains(key) || !j[key].is_number_integer())
+      {
+         errors.push_back(std::string(key) + " is required and must be an integer");
+         return;
+      }
+      else
+      {
+         const int v = j[key].get<int>();
+         if (v <= 0)
+            errors.push_back(std::string(key) + " must be > 0");
+      }
+   }
+
+   void RequireNumber(const json& j, ErrorList& errors, const char* key)
+   {
+      if (!j.contains(key) || !j[key].is_number())
+         errors.push_back(std::string(key) + " is required and must be a number");
+   };
+
+   void CheckOptionalNumber(const json& j, ErrorList& errors, const char* key)
+   {
+      if (j.contains(key) && !j[key].is_number())
+         errors.push_back(std::string(key) + " must be a number");
+   }
+
+   void CheckOptionalJson(const json& j, ErrorList& errors, const char* key)
+   {
+      if (j.contains(key))
+      {
+         if (!j[key].is_string())
+         {
+            errors.push_back(std::string(key) + " must be a string containing JSON");
+         }
+         else
+         {
+            const auto& s = j[key].get<std::string>();
+
+            nlohmann::json parsed = nlohmann::json::parse(s, nullptr, false);
+            if (parsed.is_discarded())
+               errors.push_back(std::string(key) + " must be valid JSON");
+         }
+      }
+   }
+
+   bool IsValidNumber(const json& j, const char* key)
+   {
+      return j.contains(key) && j[key].is_number();
+   }
+
+}
+
 ErrorList ValidateMachine(const json& j)
 {
    ErrorList errors;
+   RequireString(j, errors, "name");
+   RequireString(j, errors, "cpu");
+   RequireString(j, errors, "gpu");
+   RequirePositiveInt(j, errors, "ramGb");
+   RequireString(j, errors, "motherboard");
+   return errors;
+}
 
-   // name
-   if (!j.contains("name") || !j["name"].is_string() || j["name"].get<std::string>().empty())
-      errors.push_back("name is required and must be a non-empty string");
-
-   // cpu
-   if (!j.contains("cpu") || !j["cpu"].is_string() || j["cpu"].get<std::string>().empty())
-      errors.push_back("cpu is required and must be a non-empty string");
-
-   // gpu
-   if (!j.contains("gpu") || !j["gpu"].is_string() || j["gpu"].get<std::string>().empty())
-      errors.push_back("gpu is required and must be a non-empty string");
-
-   // ramGb
-   if (!j.contains("ramGb") || !j["ramGb"].is_number_integer())
-      errors.push_back("ramGb is required and must be an integer");
-   else
-   {
-      int ram = j["ramGb"].get<int>();
-      if (ram <= 0)
-         errors.push_back("ramGb must be > 0");
-      else if (ram > 4096)
-         errors.push_back("ramGb is unrealistically large");
-   }
-
-   // motherboard
-   if (!j.contains("motherboard") || !j["motherboard"].is_string() || j["motherboard"].get<std::string>().empty())
-      errors.push_back("motherboard is required and must be a non-empty string");
-
+ErrorList ValidateHardwareConfiguration(const nlohmann::json& j)
+{
+   ErrorList errors;
+   RequireString(j, errors, "name");
+   RequirePositiveInt(j, errors,  "machineId");
+   CheckOptionalNumber(j, errors, "cpuFreqGhz");
+   CheckOptionalNumber(j, errors, "gpuFreqMhz");
+   CheckOptionalNumber(j, errors, "ramFreqMhz");
+   CheckOptionalJson(j, errors, "settings");
    return errors;
 }
 
@@ -41,25 +96,12 @@ ErrorList ValidateBenchmarkRun(const json& j)
 {
    ErrorList errors;
 
-   auto requirePositiveInt = [&](const char* key)
-   {
-      if (!j.contains(key) || !j[key].is_number_integer())
-      {
-         errors.push_back(std::string(key) + " must be an integer");
-         return;
-      }
-
-      int v = j[key].get<int>();
-      if (v <= 0)
-         errors.push_back(std::string(key) + " must be > 0");
-   };
-
-   requirePositiveInt("machineId");
-   requirePositiveInt("hardwareConfigurationId");
-   requirePositiveInt("softwareEnvironmentId");
-   requirePositiveInt("softwareConfigurationId");
-   requirePositiveInt("testId");
-   requirePositiveInt("testConfigurationId");
+   RequirePositiveInt(j, errors, "machineId");
+   RequirePositiveInt(j, errors, "hardwareConfigurationId");
+   RequirePositiveInt(j, errors, "softwareEnvironmentId");
+   RequirePositiveInt(j, errors, "softwareConfigurationId");
+   RequirePositiveInt(j, errors, "testId");
+   RequirePositiveInt(j, errors, "testConfigurationId");
 
    if (!j.contains("timestamp") || !j["timestamp"].is_string() || j["timestamp"].get<std::string>().empty())
       errors.push_back("timestamp must be a non-empty string");
@@ -71,26 +113,16 @@ ErrorList ValidateBenchmarkRun(const json& j)
    }
 
    const auto& r = j["result"];
+   RequireNumber(r, errors, "avgFps");
+   RequireNumber(r, errors, "minFps");
+   RequireNumber(r, errors, "maxFps");
+   RequireNumber(r, errors, "score");
 
-   auto requireNumber = [&](const char* key)
+   if (IsValidNumber(r, "minFps") && IsValidNumber(r, "avgFps") && IsValidNumber(r, "maxFps"))
    {
-      if (!r.contains(key) || !r[key].is_number())
-         errors.push_back(std::string(key) + " must be a number");
-   };
-
-   requireNumber("avgFps");
-   requireNumber("minFps");
-   requireNumber("maxFps");
-   requireNumber("score");
-
-   if (r.contains("minFps") && r.contains("avgFps") && r.contains("maxFps")
-       && r["minFps"].is_number()
-       && r["avgFps"].is_number()
-       && r["maxFps"].is_number())
-   {
-      double min = r["minFps"];
-      double avg = r["avgFps"];
-      double max = r["maxFps"];
+      const double min = r["minFps"];
+      const double avg = r["avgFps"];
+      const double max = r["maxFps"];
 
       if (!(min <= avg && avg <= max))
          errors.push_back("fps values must satisfy min <= avg <= max");
@@ -102,25 +134,9 @@ ErrorList ValidateBenchmarkRun(const json& j)
 ErrorList ValidateSoftwareEnvironment(const nlohmann::json& j)
 {
    ErrorList errors;
-
-   auto requireString = [&](const char* key)
-   {
-      if (!j.contains(key) || !j[key].is_string() || j[key].get<std::string>().empty())
-         errors.push_back(std::string(key) + " must be a non-empty string");
-   };
-
-   auto requireOptionalString = [&](const char* key)
-   {
-      if (j.contains(key) && !j[key].is_string())
-         errors.push_back(std::string(key) + " must be a string");
-   };
-
-   requireString("name");
-   requireString("os");
-   requireString("driverFamily");
-
-   // Optional descriptive fields (safe flexibility)
-   requireOptionalString("osVersion");
-
+   RequireString(j, errors, "name");
+   RequireString(j, errors, "os");
+   RequireString(j, errors, "driverFamily");
+   CheckOptionalString(j, errors, "osVersion");
    return errors;
 }

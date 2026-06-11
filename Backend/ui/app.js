@@ -178,14 +178,19 @@ function openImportDialog()
     document.getElementById("importFile").click();
 }
 
-function handleImport(event)
+async function handleImport(event)
 {
     const file = event.target.files[0];
     if (!file) return;
 
     console.log("Selected file:", file.name);
 
-    // later: parse + send to backend importer
+    const result = await uploadFiles([file]);
+
+    console.log("Import result:", result);
+
+    // optional: reset input so same file can be selected again
+    event.target.value = "";
 }
 
 async function loadRuns()
@@ -213,6 +218,21 @@ async function loadRuns()
 
         tbody.appendChild(row);
     }
+}
+
+async function uploadFiles(files)
+{
+    const formData = new FormData();
+
+    for (const f of files)
+        formData.append("file", f);
+
+    const res = await fetch("/api/import/files", {
+        method: "POST",
+        body: formData
+    });
+
+    return await res.json();
 }
 
 window.onload = () => {

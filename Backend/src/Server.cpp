@@ -91,6 +91,11 @@ void Server::RegisterRoutes()
    {
       CreateBenchmarkRunRequest(req, res);
    });
+
+   server.Post("/api/import/files", [this](const httplib::Request& req, httplib::Response& res)
+   {
+      ImportFiles(req, res);
+   });
 }
 
 void Server::DbStatusRequest(const httplib::Request&, httplib::Response& res)
@@ -541,6 +546,35 @@ void Server::CreateBenchmarkRunRequest(const httplib::Request& req, httplib::Res
    res.set_content(response.dump(), "application/json");
 }
 
+void Server::ImportFiles(const httplib::Request& req, httplib::Response& res)
+{
+   json response;
+
+   if (req.files.empty())
+   {
+      res.status = 400;
+      response["status"] = "error";
+      response["message"] = "No files provided";
+      res.set_content(response.dump(), "application/json");
+      return;
+   }
+
+   json filesInfo = json::array();
+
+   for (const auto& [name, file] : req.files)
+   {
+      json f;
+      f["name"] = file.filename;
+      f["size"] = file.content.size();
+
+      filesInfo.push_back(f);
+   }
+
+   response["status"] = "ok";
+   response["files"] = filesInfo;
+
+   res.set_content(response.dump(), "application/json");
+}
 
 void Server::ListEntitiesHttp(Database& db, Server::EntityDescriptor& entity, httplib::Response& res)
 {

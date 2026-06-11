@@ -4,3 +4,7 @@ project(BenchmarkTool LANGUAGES CXX C)
 
 add_subdirectory(Backend)
 #add_subdirectory(Frontend)
+
+
+set(PROJECT_FILES TODOs.txt)
+add_custom_target(ProjectFiles SOURCES ${PROJECT_FILES})

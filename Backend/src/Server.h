@@ -35,6 +35,7 @@ private:
 
    // Request handlers
    void DbStatusRequest(const httplib::Request& req, httplib::Response& res);
+
    void ListMachinesRequest(const httplib::Request& req, httplib::Response& res);
    void CreateMachineRequest(const httplib::Request& req, httplib::Response& res);
    void ListHardwareConfigsRequest(const httplib::Request& req, httplib::Response& res);
@@ -50,6 +51,8 @@ private:
 
    void ListBenchmarkRunsRequest(const httplib::Request& req, httplib::Response& res);
    void CreateBenchmarkRunRequest(const httplib::Request& req, httplib::Response& res);
+
+   void ImportFiles(const httplib::Request& req, httplib::Response& res);
 
    // Helpers
    void ListEntitiesHttp(Database& db, Server::EntityDescriptor& entity, httplib::Response& res);
