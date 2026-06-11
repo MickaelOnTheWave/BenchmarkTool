@@ -98,3 +98,29 @@ ErrorList ValidateBenchmarkRun(const json& j)
 
    return errors;
 }
+
+ErrorList ValidateSoftwareEnvironment(const nlohmann::json& j)
+{
+   ErrorList errors;
+
+   auto requireString = [&](const char* key)
+   {
+      if (!j.contains(key) || !j[key].is_string() || j[key].get<std::string>().empty())
+         errors.push_back(std::string(key) + " must be a non-empty string");
+   };
+
+   auto requireOptionalString = [&](const char* key)
+   {
+      if (j.contains(key) && !j[key].is_string())
+         errors.push_back(std::string(key) + " must be a string");
+   };
+
+   requireString("name");
+   requireString("os");
+   requireString("driverFamily");
+
+   // Optional descriptive fields (safe flexibility)
+   requireOptionalString("osVersion");
+
+   return errors;
+}

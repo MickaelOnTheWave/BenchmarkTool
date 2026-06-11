@@ -204,5 +204,5 @@ TEST_CASE("ValidateBenchmarkRun - invalid ID types", "[validation][run]")
 
    auto errors = ValidateBenchmarkRun(j);
 
-   REQUIRE_FALSE(errors.size() == 3);
+   REQUIRE(errors.size() == 3);
 }

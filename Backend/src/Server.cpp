@@ -219,7 +219,6 @@ void Server::CreateSoftwareEnvironmentRequest(const httplib::Request& req, httpl
       "OsVersion",
       "DriverFamily"
    };
-
    entity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
    {
       sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
@@ -227,6 +226,7 @@ void Server::CreateSoftwareEnvironmentRequest(const httplib::Request& req, httpl
       sqlite3_bind_text(stmt, 3, j.value("osVersion", "").c_str(), -1, SQLITE_TRANSIENT);
       sqlite3_bind_text(stmt, 4, j.value("driverFamily", "").c_str(), -1, SQLITE_TRANSIENT);
    };
+   entity.validator = ValidateSoftwareEnvironment;
 
    InsertEntityHttp(db, entity, req, res);
 }
@@ -469,13 +469,13 @@ void Server::CreateBenchmarkRunRequest(const httplib::Request& req, httplib::Res
       return;
    }
 
-   sqlite3_bind_int(stmt, 1, entityJsonData.value("machineId", 0));
-   sqlite3_bind_int(stmt, 2, entityJsonData.value("hardwareConfigurationId", 0));
-   sqlite3_bind_int(stmt, 3, entityJsonData.value("softwareEnvironmentId", 0));
-   sqlite3_bind_int(stmt, 4, entityJsonData.value("softwareConfigurationId", 0));
-   sqlite3_bind_int(stmt, 5, entityJsonData.value("testId", 0));
-   sqlite3_bind_int(stmt, 6, entityJsonData.value("testConfigurationId", 0));
-   sqlite3_bind_text(stmt, 7, entityJsonData.value("timestamp", "").c_str(), -1, SQLITE_TRANSIENT);
+   sqlite3_bind_int(stmt, 1, entityJsonData["machineId"].get<int>());
+   sqlite3_bind_int(stmt, 2, entityJsonData["hardwareConfigurationId"].get<int>());
+   sqlite3_bind_int(stmt, 3, entityJsonData["softwareEnvironmentId"].get<int>());
+   sqlite3_bind_int(stmt, 4, entityJsonData["softwareConfigurationId"].get<int>());
+   sqlite3_bind_int(stmt, 5, entityJsonData["testId"].get<int>());
+   sqlite3_bind_int(stmt, 6, entityJsonData["testConfigurationId"].get<int>());
+   sqlite3_bind_text(stmt, 7, entityJsonData["timestamp"].get<std::string>().c_str(), -1, SQLITE_TRANSIENT);
 
    if (sqlite3_step(stmt) != SQLITE_DONE)
    {
