@@ -4,8 +4,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Threads REQUIRED)
 find_package(SQLite3 REQUIRED)
 
+option(BUILD_TESTS "Build unit tests" OFF)
+
 add_subdirectory(libs/httplib)
 add_subdirectory(libs/json)
+if(BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
+
 
 add_executable(Backend src/main.cpp
    src/Server.h src/Server.cpp
