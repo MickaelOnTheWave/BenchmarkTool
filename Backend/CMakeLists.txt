@@ -22,6 +22,10 @@ target_include_directories(Backend PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../web
 set(PROJECT_FILES schema/schema.sql)
 add_custom_target(ProjectFiles SOURCES ${PROJECT_FILES})
 
+
+set(UI_FILES ui/index.html ui/style.css ui/app.js)
+add_custom_target(UiFiles SOURCES ${UI_FILES})
+
 add_custom_command(TARGET Backend POST_BUILD
    COMMAND ${CMAKE_COMMAND} -E copy_if_different
    ${CMAKE_CURRENT_SOURCE_DIR}/schema/schema.sql
