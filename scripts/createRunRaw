@@ -1,0 +1,17 @@
+curl -X POST http://localhost:8080/api/run/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "machineId": 1,
+    "hardwareConfigurationId": 1,
+    "softwareEnvironmentId": 1,
+    "softwareConfigurationId": 1,
+    "testId": 1,
+    "testConfigurationId": 1,
+    "timestamp": "2026-06-11T20:30:00Z",
+    "result": {
+      "avgFps": 142.5,
+      "minFps": 89.0,
+      "maxFps": 201.3,
+      "score": 8453
+    }
+  }'

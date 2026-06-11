@@ -47,6 +47,9 @@ private:
    void ListTestConfigsRequest(const httplib::Request& req, httplib::Response& res);
    void CreateTestConfigRequest(const httplib::Request& req, httplib::Response& res);
 
+   void ListBenchmarkRunsRequest(const httplib::Request& req, httplib::Response& res);
+   void CreateBenchmarkRunRequest(const httplib::Request& req, httplib::Response& res);
+
    // Helpers
    void ListEntitiesHttp(Database& db, Server::EntityDescriptor& entity, httplib::Response& res);
    nlohmann::json ListEntities(Database& db, Server::EntityDescriptor& entity);

@@ -83,6 +83,15 @@ void Server::RegisterRoutes()
    {
       CreateTestConfigRequest(req, res);
    });
+
+   server.Get("/api/run/list", [this](const httplib::Request& req, httplib::Response& res)
+   {
+      ListBenchmarkRunsRequest(req, res);
+   });
+   server.Post("/api/run/create", [this](const httplib::Request& req, httplib::Response& res)
+   {
+      CreateBenchmarkRunRequest(req, res);
+   });
 }
 
 void Server::RootRequest(const httplib::Request&, httplib::Response& res)
@@ -344,6 +353,205 @@ void Server::CreateTestConfigRequest(const httplib::Request& req, httplib::Respo
 
    InsertEntityHttp(db, entity, req, res);
 }
+
+void Server::ListBenchmarkRunsRequest(const httplib::Request& req, httplib::Response& res)
+{
+   json response;
+   response["runs"] = json::array();
+
+   const char* sql = R"(
+      SELECT
+          br.Id,
+          br.Timestamp,
+
+          m.Name,
+          hc.Name,
+          se.Name,
+          sc.Name,
+          t.Name,
+          tc.Name,
+
+          r.AvgFps,
+          r.MinFps,
+          r.MaxFps,
+          r.Score
+
+      FROM BenchmarkRun br
+      JOIN Machine m ON br.MachineId = m.Id
+      JOIN HardwareConfiguration hc ON br.HardwareConfigurationId = hc.Id
+      JOIN SoftwareEnvironment se ON br.SoftwareEnvironmentId = se.Id
+      JOIN SoftwareConfiguration sc ON br.SoftwareConfigurationId = sc.Id
+      JOIN Test t ON br.TestId = t.Id
+      JOIN TestConfiguration tc ON br.TestConfigurationId = tc.Id
+      JOIN Result r ON r.RunId = br.Id
+      ORDER BY br.Id DESC;
+   )";
+
+   sqlite3_stmt* stmt = nullptr;
+
+   if (sqlite3_prepare_v2(db.GetHandle(), sql, -1, &stmt, nullptr) != SQLITE_OK)
+   {
+      res.status = 500;
+      res.set_content(R"({"status":"error","message":"failed to prepare query"})",
+                      "application/json");
+      return;
+   }
+
+   while (sqlite3_step(stmt) == SQLITE_ROW)
+   {
+      json run;
+
+      run["id"] = sqlite3_column_int(stmt, 0);
+      run["timestamp"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+
+      run["machine"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+      run["hardwareConfiguration"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+      run["softwareEnvironment"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+      run["softwareConfiguration"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
+      run["test"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6));
+      run["testConfiguration"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
+
+      json result;
+      result["avgFps"] = sqlite3_column_double(stmt, 8);
+      result["minFps"] = sqlite3_column_double(stmt, 9);
+      result["maxFps"] = sqlite3_column_double(stmt, 10);
+      result["score"] = sqlite3_column_double(stmt, 11);
+
+      run["result"] = result;
+
+      response["runs"].push_back(run);
+   }
+
+   sqlite3_finalize(stmt);
+
+   res.set_content(response.dump(3), "application/json");
+}
+
+void Server::CreateBenchmarkRunRequest(const httplib::Request& req, httplib::Response& res)
+{
+   json response;
+   json request = json::parse(req.body, nullptr, false);
+   if (request.is_discarded())
+   {
+      res.status = 400;
+      response["status"] = "error";
+      response["message"] = "Invalid JSON";
+      res.set_content(response.dump(), "application/json");
+      return;
+   }
+
+   if (!request.contains("machineId") || !request.contains("hardwareConfigurationId") ||
+       !request.contains("softwareEnvironmentId") || !request.contains("softwareConfigurationId") ||
+       !request.contains("testId") || !request.contains("testConfigurationId") ||
+       !request.contains("timestamp") || !request.contains("result"))
+   {
+      res.status = 400;
+      response["status"] = "error";
+      response["message"] = "Missing required fields";
+      res.set_content(response.dump(), "application/json");
+      return;
+   }
+
+   char* err = nullptr;
+   if (sqlite3_exec(db.GetHandle(), "BEGIN TRANSACTION;", nullptr, nullptr, &err) != SQLITE_OK)
+   {
+      res.status = 500;
+      response["status"] = "error";
+      response["message"] = err ? err : "Failed to start transaction";
+      sqlite3_free(err);
+      res.set_content(response.dump(), "application/json");
+      return;
+   }
+
+   sqlite3_stmt* stmt = nullptr;
+   const std::string insertRunQuery =
+      "INSERT INTO BenchmarkRun (MachineId, HardwareConfigurationId, SoftwareEnvironmentId, "
+      "SoftwareConfigurationId, TestId, TestConfigurationId, Timestamp) "
+      "VALUES (?, ?, ?, ?, ?, ?, ?);";
+
+   if (sqlite3_prepare_v2(db.GetHandle(), insertRunQuery.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+   {
+      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+      res.status = 500;
+      response["status"] = "error";
+      response["message"] = sqlite3_errmsg(db.GetHandle());
+      sqlite3_finalize(stmt);
+      res.set_content(response.dump(), "application/json");
+      return;
+   }
+
+   sqlite3_bind_int(stmt, 1, request.value("machineId", 0));
+   sqlite3_bind_int(stmt, 2, request.value("hardwareConfigurationId", 0));
+   sqlite3_bind_int(stmt, 3, request.value("softwareEnvironmentId", 0));
+   sqlite3_bind_int(stmt, 4, request.value("softwareConfigurationId", 0));
+   sqlite3_bind_int(stmt, 5, request.value("testId", 0));
+   sqlite3_bind_int(stmt, 6, request.value("testConfigurationId", 0));
+   sqlite3_bind_text(stmt, 7, request.value("timestamp", "").c_str(), -1, SQLITE_TRANSIENT);
+
+   if (sqlite3_step(stmt) != SQLITE_DONE)
+   {
+      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+      sqlite3_finalize(stmt);
+      res.status = 500;
+      response["status"] = "error";
+      response["message"] = sqlite3_errmsg(db.GetHandle());
+      res.set_content(response.dump(), "application/json");
+      return;
+   }
+
+   sqlite3_finalize(stmt);
+
+   int runId = db.GetLastInsertId();
+
+   json resultData = request["result"];
+   const std::string insertResultQuery =
+      "INSERT INTO Result (RunId, AvgFps, MinFps, MaxFps, Score) VALUES (?, ?, ?, ?, ?);";
+
+   if (sqlite3_prepare_v2(db.GetHandle(), insertResultQuery.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+   {
+      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+      res.status = 500;
+      response["status"] = "error";
+      response["message"] = sqlite3_errmsg(db.GetHandle());
+      res.set_content(response.dump(), "application/json");
+      return;
+   }
+
+   sqlite3_bind_int(stmt, 1, runId);
+   sqlite3_bind_double(stmt, 2, resultData.value("avgFps", 0.0));
+   sqlite3_bind_double(stmt, 3, resultData.value("minFps", 0.0));
+   sqlite3_bind_double(stmt, 4, resultData.value("maxFps", 0.0));
+   sqlite3_bind_double(stmt, 5, resultData.value("score", 0.0));
+
+   if (sqlite3_step(stmt) != SQLITE_DONE)
+   {
+      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+      sqlite3_finalize(stmt);
+      res.status = 500;
+      response["status"] = "error";
+      response["message"] = sqlite3_errmsg(db.GetHandle());
+      res.set_content(response.dump(), "application/json");
+      return;
+   }
+
+   sqlite3_finalize(stmt);
+
+   if (sqlite3_exec(db.GetHandle(), "COMMIT;", nullptr, nullptr, &err) != SQLITE_OK)
+   {
+      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+      res.status = 500;
+      response["status"] = "error";
+      response["message"] = err ? err : "Failed to commit transaction";
+      sqlite3_free(err);
+      res.set_content(response.dump(), "application/json");
+      return;
+   }
+
+   response["status"] = "ok";
+   response["runId"] = runId;
+   res.set_content(response.dump(), "application/json");
+}
+
 
 void Server::ListEntitiesHttp(Database& db, Server::EntityDescriptor& entity, httplib::Response& res)
 {
