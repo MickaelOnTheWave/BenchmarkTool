@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <iostream>
 
+#include "EntityValidators.h"
+
 using json = nlohmann::json;
 
 Server::Server()
@@ -131,7 +133,6 @@ void Server::CreateMachineRequest(const httplib::Request& req, httplib::Response
    machineEntity.insertFields = {
       "Name", "Cpu", "Gpu", "RamGb", "Motherboard"
    };
-
    machineEntity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
    {
       sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
@@ -140,6 +141,7 @@ void Server::CreateMachineRequest(const httplib::Request& req, httplib::Response
       sqlite3_bind_int(stmt, 4, j.value("ramGb", 0));
       sqlite3_bind_text(stmt, 5, j.value("motherboard", "").c_str(), -1, SQLITE_TRANSIENT);
    };
+   machineEntity.validator = ValidateMachine;
 
    InsertEntityHttp(db, machineEntity, req, res);
 }
@@ -591,8 +593,8 @@ json Server::ListEntities(Database& db, Server::EntityDescriptor& entity)
 void Server::InsertEntityHttp(Database& db, const Server::EntityDescriptor& entity, const httplib::Request& req, httplib::Response& res)
 {
    json response;
-   json request = json::parse(req.body, nullptr, false);
-   if (request.is_discarded())
+   json entityJsonData = json::parse(req.body, nullptr, false);
+   if (entityJsonData.is_discarded())
    {
       res.status = 400;
       response["status"] = "error";
@@ -601,7 +603,23 @@ void Server::InsertEntityHttp(Database& db, const Server::EntityDescriptor& enti
       return;
    }
 
-   auto insertResult = InsertEntity(db, entity, request);
+   const ErrorList validationErrors = entity.validator(entityJsonData);
+   if (!validationErrors.empty())
+   {
+      res.status = 400;
+
+      response["status"] = "error";
+      response["message"] = "Validation failed";
+
+      response["errors"] = json::array();
+      for (const auto& err : validationErrors)
+         response["errors"].push_back(err);
+
+      res.set_content(response.dump(), "application/json");
+      return;
+   }
+
+   auto insertResult = InsertEntity(db, entity, entityJsonData);
    if (insertResult.has_value())
    {
       res.status = 500;

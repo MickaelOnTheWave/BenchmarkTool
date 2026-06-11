@@ -17,6 +17,7 @@ public:
    void Run();
 
 private:
+   using ErrorList = std::vector<std::string>;
    struct EntityDescriptor
    {
       std::string table;
@@ -27,6 +28,7 @@ private:
 
       std::vector<std::string> insertFields;
       std::function<void(sqlite3_stmt*, const nlohmann::json&)> insertBinder;
+      std::function<ErrorList(const nlohmann::json&)> validator;
    };
 
    void RegisterRoutes();

@@ -13,24 +13,12 @@ if(BUILD_TESTS)
 endif()
 
 
-add_library(Core
-    core/EntityValidators.cpp
-)
-
-target_include_directories(Core PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/core
-)
-
-target_link_libraries(Core PUBLIC
-    nlohmann_json
-)
-
 add_executable(Backend src/main.cpp
    src/Server.h src/Server.cpp
-   src/Database.h src/Database.cpp)
+   src/Database.h src/Database.cpp
+   src/EntityValidators.h src/EntityValidators.cpp)
 
 target_link_libraries(Backend PRIVATE
-    Core
     httplib
     nlohmann_json
     Threads::Threads

@@ -9,13 +9,14 @@ add_executable(UnitTests
 )
 
 target_link_libraries(UnitTests PRIVATE
+    Core
     Catch2::Catch2WithMain
     nlohmann_json
 )
 
 target_include_directories(UnitTests PRIVATE
     ${CMAKE_SOURCE_DIR}/Backend/src
-)
+ )
 
 include(CTest)
 include(Catch)
