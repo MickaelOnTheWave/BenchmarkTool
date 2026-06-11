@@ -99,5 +99,31 @@
        </div>
 
    </div>
+
+   <div id="addMachineDialog" class="modal" style="display:none;">
+      <div class="modal-content">
+         <h3>Add Machine</h3>
+
+         <label>Name</label>
+         <input id="mName" type="text">
+
+         <label>CPU</label>
+         <input id="mCpu" type="text">
+
+         <label>GPU</label>
+         <input id="mGpu" type="text">
+
+         <label>RAM (GB)</label>
+         <input id="mRam" type="number">
+
+         <label>Motherboard</label>
+         <input id="mMotherboard" type="text">
+
+         <div style="margin-top:12px; display:flex; gap:8px;">
+            <button onclick="submitMachine()">Create</button>
+            <button onclick="closeMachineDialog()">Cancel</button>
+         </div>
+      </div>
+   </div>
 </body>
 </html>

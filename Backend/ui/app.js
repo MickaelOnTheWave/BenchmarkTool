@@ -15,13 +15,11 @@ async function setView(view)
 
    document.getElementById(view + "Section").style.display = "block";
 
-   if (view === "home")
-   {
+    if (view === "home")
+    {
         await loadMachines();
-       document.getElementById("addMachineBtn").onclick = () => {
-           console.log("Add machine clicked");
-       };
-   }
+        document.getElementById("addMachineBtn").onclick = openMachineDialog;
+    }
 }
 
 async function loadMachines()
@@ -52,8 +50,7 @@ async function loadMachines()
 
   if (data.machines.length === 1)
   {
-      selectMachine(data.machines[0]);
-      list.parentElement.style.display = "none";
+    selectMachine(data.machines[0]);
   }
 }
 
@@ -74,6 +71,39 @@ function selectMachine(machine)
   // loadBenchmarkRuns(machine.id);
 }
 
+function openMachineDialog()
+{
+    document.getElementById("addMachineDialog").style.display = "flex";
+}
+
+function closeMachineDialog()
+{
+    document.getElementById("addMachineDialog").style.display = "none";
+}
+
+async function submitMachine()
+{
+    const payload = {
+        name: document.getElementById("mName").value,
+        cpu: document.getElementById("mCpu").value,
+        gpu: document.getElementById("mGpu").value,
+        ramGb: parseInt(document.getElementById("mRam").value || "0"),
+        motherboard: document.getElementById("mMotherboard").value
+    };
+
+    await fetch("/api/create-machine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+
+    closeMachineDialog();
+    loadMachines();
+}
+
 window.onload = () => {
     setView('home');
 };
+window.submitMachine = submitMachine;
+window.closeMachineDialog = closeMachineDialog;
+window.openMachineDialog = openMachineDialog;
