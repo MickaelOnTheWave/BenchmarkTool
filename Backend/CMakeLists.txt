@@ -7,7 +7,8 @@ find_package(SQLite3 REQUIRED)
 add_subdirectory(libs/httplib)
 add_subdirectory(libs/json)
 
-add_executable(Backend src/Server.cpp
+add_executable(Backend src/main.cpp
+   src/Server.h src/Server.cpp
    src/Database.h src/Database.cpp)
 
 target_link_libraries(Backend PRIVATE
