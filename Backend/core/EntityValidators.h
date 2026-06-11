@@ -8,6 +8,6 @@
 using ErrorList = std::vector<std::string>;
 
 ErrorList ValidateMachine(const nlohmann::json& j);
-
+ErrorList ValidateBenchmarkRun(const nlohmann::json& j);
 
 #endif // ENTITYVALIDATORS_H

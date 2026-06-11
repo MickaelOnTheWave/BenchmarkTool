@@ -14,7 +14,8 @@ endif()
 
 
 add_library(Core
-    core/EntityValidators.cpp
+    core/EntityValidators.h core/EntityValidators.cpp
+    core/Database.h core/Database.cpp
 )
 
 target_include_directories(Core PUBLIC
@@ -26,8 +27,7 @@ target_link_libraries(Core PUBLIC
 )
 
 add_executable(Backend src/main.cpp
-   src/Server.h src/Server.cpp
-   src/Database.h src/Database.cpp)
+   src/Server.h src/Server.cpp)
 
 target_link_libraries(Backend PRIVATE
     Core

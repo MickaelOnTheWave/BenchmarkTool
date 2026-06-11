@@ -60,6 +60,8 @@ private:
 
    std::string BuildSqlInsertQuery(const Server::EntityDescriptor& entity);
 
+   void SetHttpResponse(httplib::Response& res, const ErrorList& errors);
+
    httplib::Server server;
    Database db;
 };

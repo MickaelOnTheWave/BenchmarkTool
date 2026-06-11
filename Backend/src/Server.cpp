@@ -424,8 +424,8 @@ void Server::ListBenchmarkRunsRequest(const httplib::Request& req, httplib::Resp
 void Server::CreateBenchmarkRunRequest(const httplib::Request& req, httplib::Response& res)
 {
    json response;
-   json request = json::parse(req.body, nullptr, false);
-   if (request.is_discarded())
+   json entityJsonData = json::parse(req.body, nullptr, false);
+   if (entityJsonData.is_discarded())
    {
       res.status = 400;
       response["status"] = "error";
@@ -434,15 +434,10 @@ void Server::CreateBenchmarkRunRequest(const httplib::Request& req, httplib::Res
       return;
    }
 
-   if (!request.contains("machineId") || !request.contains("hardwareConfigurationId") ||
-       !request.contains("softwareEnvironmentId") || !request.contains("softwareConfigurationId") ||
-       !request.contains("testId") || !request.contains("testConfigurationId") ||
-       !request.contains("timestamp") || !request.contains("result"))
+   const ErrorList validationErrors = ValidateBenchmarkRun(entityJsonData);
+   if (!validationErrors.empty())
    {
-      res.status = 400;
-      response["status"] = "error";
-      response["message"] = "Missing required fields";
-      res.set_content(response.dump(), "application/json");
+      SetHttpResponse(res, validationErrors);
       return;
    }
 
@@ -474,13 +469,13 @@ void Server::CreateBenchmarkRunRequest(const httplib::Request& req, httplib::Res
       return;
    }
 
-   sqlite3_bind_int(stmt, 1, request.value("machineId", 0));
-   sqlite3_bind_int(stmt, 2, request.value("hardwareConfigurationId", 0));
-   sqlite3_bind_int(stmt, 3, request.value("softwareEnvironmentId", 0));
-   sqlite3_bind_int(stmt, 4, request.value("softwareConfigurationId", 0));
-   sqlite3_bind_int(stmt, 5, request.value("testId", 0));
-   sqlite3_bind_int(stmt, 6, request.value("testConfigurationId", 0));
-   sqlite3_bind_text(stmt, 7, request.value("timestamp", "").c_str(), -1, SQLITE_TRANSIENT);
+   sqlite3_bind_int(stmt, 1, entityJsonData.value("machineId", 0));
+   sqlite3_bind_int(stmt, 2, entityJsonData.value("hardwareConfigurationId", 0));
+   sqlite3_bind_int(stmt, 3, entityJsonData.value("softwareEnvironmentId", 0));
+   sqlite3_bind_int(stmt, 4, entityJsonData.value("softwareConfigurationId", 0));
+   sqlite3_bind_int(stmt, 5, entityJsonData.value("testId", 0));
+   sqlite3_bind_int(stmt, 6, entityJsonData.value("testConfigurationId", 0));
+   sqlite3_bind_text(stmt, 7, entityJsonData.value("timestamp", "").c_str(), -1, SQLITE_TRANSIENT);
 
    if (sqlite3_step(stmt) != SQLITE_DONE)
    {
@@ -497,7 +492,7 @@ void Server::CreateBenchmarkRunRequest(const httplib::Request& req, httplib::Res
 
    int runId = db.GetLastInsertId();
 
-   json resultData = request["result"];
+   json resultData = entityJsonData["result"];
    const std::string insertResultQuery =
       "INSERT INTO Result (RunId, AvgFps, MinFps, MaxFps, Score) VALUES (?, ?, ?, ?, ?);";
 
@@ -606,16 +601,7 @@ void Server::InsertEntityHttp(Database& db, const Server::EntityDescriptor& enti
    const ErrorList validationErrors = entity.validator(entityJsonData);
    if (!validationErrors.empty())
    {
-      res.status = 400;
-
-      response["status"] = "error";
-      response["message"] = "Validation failed";
-
-      response["errors"] = json::array();
-      for (const auto& err : validationErrors)
-         response["errors"].push_back(err);
-
-      res.set_content(response.dump(), "application/json");
+      SetHttpResponse(res, validationErrors);
       return;
    }
 
@@ -677,4 +663,19 @@ std::string Server::BuildSqlInsertQuery(const Server::EntityDescriptor& entity)
 
    sql += ");";
    return sql;
+}
+
+void Server::SetHttpResponse(httplib::Response& res, const ErrorList& errors)
+{
+   res.status = 400;
+
+   json response;
+   response["status"] = "error";
+   response["message"] = "Validation failed";
+
+   response["errors"] = json::array();
+   for (const auto& err : errors)
+      response["errors"].push_back(err);
+
+   res.set_content(response.dump(), "application/json");
 }
