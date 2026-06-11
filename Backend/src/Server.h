@@ -32,7 +32,6 @@ private:
    void RegisterRoutes();
 
    // Request handlers
-   void RootRequest(const httplib::Request& req, httplib::Response& res);
    void DbStatusRequest(const httplib::Request& req, httplib::Response& res);
    void ListMachinesRequest(const httplib::Request& req, httplib::Response& res);
    void CreateMachineRequest(const httplib::Request& req, httplib::Response& res);

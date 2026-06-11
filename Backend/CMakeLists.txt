@@ -27,3 +27,9 @@ add_custom_command(TARGET Backend POST_BUILD
    ${CMAKE_CURRENT_SOURCE_DIR}/schema/schema.sql
    $<TARGET_FILE_DIR:Backend>/schema.sql
 )
+
+add_custom_command(TARGET Backend POST_BUILD
+   COMMAND ${CMAKE_COMMAND} -E copy_directory
+   ${CMAKE_CURRENT_SOURCE_DIR}/ui
+   $<TARGET_FILE_DIR:Backend>/ui
+)

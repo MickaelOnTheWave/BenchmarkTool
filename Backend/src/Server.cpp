@@ -10,6 +10,8 @@ Server::Server()
 {
    std::filesystem::create_directories("data");
    RegisterRoutes();
+
+   server.set_mount_point("/ui", "./ui");
 }
 
 void Server::Run()
@@ -20,11 +22,6 @@ void Server::Run()
 
 void Server::RegisterRoutes()
 {
-   server.Get("/ui/index.html", [this](const httplib::Request& req, httplib::Response& res)
-   {
-      RootRequest(req, res);
-   });
-
    server.Get("/api/db-status", [this](const httplib::Request& req, httplib::Response& res)
    {
       DbStatusRequest(req, res);
@@ -92,11 +89,6 @@ void Server::RegisterRoutes()
    {
       CreateBenchmarkRunRequest(req, res);
    });
-}
-
-void Server::RootRequest(const httplib::Request&, httplib::Response& res)
-{
-   res.set_content("My C++ HTTP Server!", "text/plain");
 }
 
 void Server::DbStatusRequest(const httplib::Request&, httplib::Response& res)
