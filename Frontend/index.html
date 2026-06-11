@@ -1,0 +1,206 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Benchmark Dashboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      height: 100vh;
+    }
+
+    .sidebar {
+      width: 220px;
+      border-right: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .menu-item {
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .menu-item:hover {
+      background: #f2f2f2;
+    }
+
+    .content {
+      flex: 1;
+      padding: 16px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="sidebar">
+    <div class="menu-item" onclick="setView('home')">Home</div>
+    <div class="menu-item" onclick="setView('machineStats')">Machine Stats</div>
+    <div class="menu-item" onclick="setView('configStats')">Config Stats</div>
+    <div class="menu-item" onclick="setView('details')">Details</div>
+    <div class="menu-item" onclick="setView('settings')">Settings</div>
+    <div class="menu-item" onclick="setView('about')">About</div>
+  </div>
+
+    <div class="content" id="content">
+        <div style="display: grid; grid-template-columns: 320px 1fr; grid-template-rows: auto 1fr; gap: 12px; height: 100%;">
+
+        <!-- Top-left: Machine list -->
+        <div style="border: 1px solid #ccc; padding: 8px; overflow-y: auto;">
+            <div style="font-weight: bold; margin-bottom: 8px;">Machines</div>
+
+            <ul id="machineList" style="list-style: none; padding: 0; margin: 0;">
+            <!-- dynamically filled -->
+            </ul>
+        </div>
+
+        <!-- Top-right: Selected machine details -->
+        <div style="border: 1px solid #ccc; padding: 8px;">
+            <div style="font-weight: bold; margin-bottom: 8px;">Selected Machine</div>
+
+            <div id="machineDetails">
+            <div>Select a machine</div>
+            </div>
+        </div>
+
+        <!-- Bottom: Runs table -->
+        <div style="grid-column: 1 / span 2; border: 1px solid #ccc; padding: 8px; overflow: auto;">
+            <div style="font-weight: bold; margin-bottom: 8px;">Benchmark Runs</div>
+
+            <table border="1" width="100%" id="runsTable">
+            <thead>
+                <tr>
+                <th>Test</th>
+                <th>Config</th>
+                <th>Score</th>
+                <th>Avg FPS</th>
+                <th>Min FPS</th>
+                <th>Max FPS</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+            </table>
+        </div>
+
+        </div>
+    </div>
+
+  <script>
+    function setView(view)
+    {
+      const content = document.getElementById("content");
+
+      switch (view) {
+        case "home":
+            content.innerHTML = `
+                <div style="display:grid;grid-template-columns:320px 1fr;grid-template-rows:auto 1fr;gap:12px;height:100%;">
+                    <div style="border:1px solid #ccc;padding:8px;">
+                        <div><b>Machines</b></div>
+                        <ul id="machineList" style="list-style:none;padding:0;"></ul>
+                    </div>
+
+                    <div style="border:1px solid #ccc;padding:8px;">
+                        <div><b>Selected Machine</b></div>
+                        <div id="machineDetails">
+                            Select a machine
+                        </div>
+                    </div>
+
+                    <div style="grid-column:1 / span 2;border:1px solid #ccc;padding:8px;">
+                        <div><b>Benchmark Runs</b></div>
+
+                        <table border="1" width="100%">
+                            <thead>
+                                <tr>
+                                    <th>Test</th>
+                                    <th>Config</th>
+                                    <th>Score</th>
+                                    <th>Avg FPS</th>
+                                    <th>Min FPS</th>
+                                    <th>Max FPS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="runsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+          await loadMachines();
+          break;
+        case "machineStats":
+          content.innerHTML = "Machine Stats";
+          break;
+        case "configStats":
+          content.innerHTML = "Config Stats";
+          break;
+        case "details":
+          content.innerHTML = "Details";
+          break;
+        case "settings":
+          content.innerHTML = "Settings";
+          break;
+        case "about":
+          content.innerHTML = "About";
+          break;
+      }
+    }
+
+    async function loadMachines()
+    {
+        const response =
+            await fetch("http://localhost:8080/api/list-machines");
+
+        const data = await response.json();
+
+        const list = document.getElementById("machineList");
+        list.innerHTML = "";
+
+        for (const machine of data.machines)
+        {
+            const item = document.createElement("li");
+
+            item.textContent = machine.name;
+            item.style.cursor = "pointer";
+            item.style.padding = "4px";
+
+            item.onclick = () =>
+            {
+                selectMachine(machine);
+            };
+
+            list.appendChild(item);
+        }
+
+        if (data.machines.length === 1)
+        {
+            selectMachine(data.machines[0]);
+            list.parentElement.style.display = "none";
+        }
+    }
+
+    function selectMachine(machine)
+    {
+        const details = document.getElementById("machineDetails");
+
+        details.innerHTML = `
+            <table>
+                <tr><td><b>CPU</b></td><td>${machine.cpu}</td></tr>
+                <tr><td><b>GPU</b></td><td>${machine.gpu}</td></tr>
+                <tr><td><b>RAM</b></td><td>${machine.ramGb} GB</td></tr>
+                <tr><td><b>Motherboard</b></td><td>${machine.motherboard}</td></tr>
+            </table>
+        `;
+
+        // later:
+        // loadBenchmarkRuns(machine.id);
+    }
+  </script>
+
+</body>
+</html>
