@@ -1,5 +1,5 @@
 12/06 - 1. Run data integrity + validation layer
-2. Import pipeline design (before coding it deeply)
+13/06 - 2. Import pipeline design (before coding it deeply)
 3. Add filters to backend api
 4. Define run query + API contract stabilization (small but crucial missing step)
 5. Implement 3DMark importer
