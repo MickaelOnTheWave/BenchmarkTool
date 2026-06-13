@@ -8,6 +8,7 @@ option(BUILD_TESTS "Build unit tests" OFF)
 
 add_subdirectory(libs/httplib)
 add_subdirectory(libs/json)
+add_subdirectory(libs/tinyxml)
 if(BUILD_TESTS)
     add_subdirectory(tests)
 endif()
@@ -26,10 +27,12 @@ add_library(Core
 target_include_directories(Core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/core
     ${CMAKE_CURRENT_SOURCE_DIR}/libs/miniz
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/tinyxml
 )
 
 target_link_libraries(Core PUBLIC
     nlohmann_json
+    tinyxml2
 )
 
 add_executable(Backend src/main.cpp
