@@ -4,8 +4,18 @@
 #include <iostream>
 
 #include "EntityValidators.h"
+#include "FileFormatDetector.h"
+#include "ThreeDMarkImporter.h"
 
 using json = nlohmann::json;
+
+namespace
+{
+   inline ByteBuffer ToByteBuffer(const std::string& data)
+   {
+      return ByteBuffer(data.begin(), data.end());
+   }
+}
 
 Server::Server()
    : db("data/benchmark.db")
@@ -566,6 +576,20 @@ void Server::ImportFiles(const httplib::Request& req, httplib::Response& res)
       json f;
       f["name"] = file.filename;
       f["size"] = file.content.size();
+
+      const ByteBuffer fileData = ToByteBuffer(file.content);
+      const ImportFormat fileFormat = FileFormatDetector::Detect(file.filename, fileData);
+      if (fileFormat == ImportFormat::_3DMark)
+      {
+         f["format"] = "3DMark";
+
+         ThreeDMarkImporter importer;
+         f["importData"] = importer.Import(fileData);
+      }
+      else
+      {
+         f["format"] = "unknown";
+      }
 
       filesInfo.push_back(f);
    }

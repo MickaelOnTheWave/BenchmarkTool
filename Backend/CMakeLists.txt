@@ -16,10 +16,16 @@ endif()
 add_library(Core
     core/EntityValidators.h core/EntityValidators.cpp
     core/Database.h core/Database.cpp
+    core/FileFormatDetector.h core/FileFormatDetector.cpp
+    libs/miniz/miniz.c
+    core/ZipArchive.h core/ZipArchive.cpp
+    core/AbstractImporter.h
+    core/ThreeDMarkImporter.h core/ThreeDMarkImporter.cpp
 )
 
 target_include_directories(Core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/miniz
 )
 
 target_link_libraries(Core PUBLIC

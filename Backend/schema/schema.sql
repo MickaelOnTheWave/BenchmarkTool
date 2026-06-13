@@ -70,7 +70,6 @@ CREATE TABLE TestConfiguration (
 );
 
 
-
 CREATE TABLE BenchmarkRun (
     Id INTEGER PRIMARY KEY,
 
