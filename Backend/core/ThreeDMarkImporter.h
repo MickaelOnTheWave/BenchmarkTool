@@ -10,8 +10,8 @@ public:
 
 private:
    nlohmann::json ParseResultXml(const ByteBuffer& data);
-   nlohmann::json ParseSystemInfoXml(const ByteBuffer& data);
-   nlohmann::json ParseMonitoringCsv(const ByteBuffer& data);
+   nlohmann::json ParseTestInfoXml(const ByteBuffer& data);
+   void ParseSystemInfoXml(nlohmann::json& result, const ByteBuffer& data);
 
    static std::string ByteBufferToString(const ByteBuffer& data);
 };
