@@ -112,7 +112,9 @@ void FillMachineInformation(tinyxml2::XMLDocument& doc, json& result)
    auto infoNode = FindFirstElementByName(&doc, "Direct_Query_Info");
    if (infoNode)
    {
-      result["machine"]["ram"] = GetNodeValue(infoNode, "Memory");
+      // Must put ram in Gb, 3DMark stores it in Mb.
+      const std::string ramStr = GetNodeValue(infoNode, "Memory");
+      result["machine"]["ram"] = std::stoi(ramStr) / 1024;
    }
 }
 

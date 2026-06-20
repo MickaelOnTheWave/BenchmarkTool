@@ -5,6 +5,7 @@
 
 #include "EntityValidators.h"
 #include "FileFormatDetector.h"
+#include "Normalizer.h"
 #include "ThreeDMarkImporter.h"
 
 using json = nlohmann::json;
@@ -584,7 +585,14 @@ void Server::ImportFiles(const httplib::Request& req, httplib::Response& res)
          f["format"] = "3DMark";
 
          ThreeDMarkImporter importer;
-         f["importData"] = importer.Import(fileData);
+         const json parsedData = importer.Import(fileData);
+
+         Normalizer normalizer(db);
+         const json actionData = normalizer.Normalize(parsedData);
+
+
+         f["parsedData"] = parsedData;
+         f["actionData"] = actionData;
       }
       else
       {
@@ -596,6 +604,9 @@ void Server::ImportFiles(const httplib::Request& req, httplib::Response& res)
 
    response["status"] = "ok";
    response["files"] = filesInfo;
+
+   std::cout << "Result : " << std::endl;
+   std::cout << response.dump(2) << std::endl;
 
    res.set_content(response.dump(), "application/json");
 }

@@ -22,6 +22,7 @@ add_library(Core
     core/ZipArchive.h core/ZipArchive.cpp
     core/AbstractImporter.h
     core/ThreeDMarkImporter.h core/ThreeDMarkImporter.cpp
+    core/Normalizer.h core/Normalizer.cpp
 )
 
 target_include_directories(Core PUBLIC
