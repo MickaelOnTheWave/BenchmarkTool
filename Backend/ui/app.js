@@ -83,6 +83,30 @@ const detailsTableDefinitions = [
             { key: "mode", label: "Mode" },
             { key: "settings", label: "Settings" }
         ]
+    },
+    {
+        id: "tests",
+        title: "Tests",
+        endpoint: "/api/list-tests",
+        rootField: "tests",
+        columns: [
+            { key: "id", label: "Id" },
+            { key: "name", label: "Name" },
+            { key: "description", label: "Description" },
+            { key: "iconPath", label: "IconPath" }
+        ]
+    },
+    {
+        id: "testConfigs",
+        title: "Test Configs",
+        endpoint: "/api/list-test-configs",
+        rootField: "testConfigurations",
+        columns: [
+            { key: "id", label: "Id" },
+            { key: "name", label: "Name" },
+            { key: "testId", label: "TestId" },
+            { key: "settings", label: "Settings" }
+        ]
     }
 ];
 
