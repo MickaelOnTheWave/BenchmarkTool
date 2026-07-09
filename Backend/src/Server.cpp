@@ -16,6 +16,68 @@ namespace
    {
       return ByteBuffer(data.begin(), data.end());
    }
+
+   bool TryParsePathId(const httplib::Request& req, int& id)
+   {
+      if (req.matches.size() < 2)
+         return false;
+
+      try
+      {
+         size_t parsedChars = 0;
+         const std::string rawId = req.matches[1].str();
+         id = std::stoi(rawId, &parsedChars);
+         return parsedChars == rawId.size() && id > 0;
+      }
+      catch (...)
+      {
+         return false;
+      }
+   }
+
+   void SetJsonError(httplib::Response& res, int status, const std::string& message)
+   {
+      json response;
+      response["status"] = "error";
+      response["message"] = message;
+
+      res.status = status;
+      res.set_content(response.dump(), "application/json");
+   }
+
+   void SetJsonOk(httplib::Response& res)
+   {
+      json response;
+      response["status"] = "ok";
+      res.set_content(response.dump(), "application/json");
+   }
+
+   bool IsForeignKeyConstraintError(const std::string& message)
+   {
+      return message.find("FOREIGN KEY constraint failed") != std::string::npos;
+   }
+
+   std::optional<std::string> DeleteByField(sqlite3* db, const std::string& table, const std::string& field, int id, int& affectedRows)
+   {
+      const std::string sql = "DELETE FROM " + table + " WHERE " + field + " = ?;";
+      sqlite3_stmt* stmt = nullptr;
+
+      if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+         return sqlite3_errmsg(db);
+
+      sqlite3_bind_int(stmt, 1, id);
+
+      if (sqlite3_step(stmt) != SQLITE_DONE)
+      {
+         std::string err = sqlite3_errmsg(db);
+         sqlite3_finalize(stmt);
+         return err;
+      }
+
+      affectedRows = sqlite3_changes(db);
+      sqlite3_finalize(stmt);
+      return std::nullopt;
+   }
 }
 
 Server::Server()
@@ -48,6 +110,10 @@ void Server::RegisterRoutes()
    {
       CreateMachineRequest(req, res);
    });
+   server.Delete(R"(/api/delete-machine/(\d+))", [this](const httplib::Request& req, httplib::Response& res)
+   {
+      DeleteMachineRequest(req, res);
+   });
 
    server.Get("/api/list-hardware-configs", [this](const httplib::Request& req, httplib::Response& res)
    {
@@ -56,6 +122,10 @@ void Server::RegisterRoutes()
    server.Post("/api/create-hardware-config", [this](const httplib::Request& req, httplib::Response& res)
    {
       CreateHardwareConfigRequest(req, res);
+   });
+   server.Delete(R"(/api/delete-hardware-config/(\d+))", [this](const httplib::Request& req, httplib::Response& res)
+   {
+      DeleteHardwareConfigRequest(req, res);
    });
 
    server.Get("/api/list-software-environments", [this](const httplib::Request& req, httplib::Response& res)
@@ -66,6 +136,10 @@ void Server::RegisterRoutes()
    {
       CreateSoftwareEnvironmentRequest(req, res);
    });
+   server.Delete(R"(/api/delete-software-environment/(\d+))", [this](const httplib::Request& req, httplib::Response& res)
+   {
+      DeleteSoftwareEnvironmentRequest(req, res);
+   });
 
    server.Get("/api/list-software-configs", [this](const httplib::Request& req, httplib::Response& res)
    {
@@ -74,6 +148,10 @@ void Server::RegisterRoutes()
    server.Post("/api/create-software-config", [this](const httplib::Request& req, httplib::Response& res)
    {
       CreateSoftwareConfigRequest(req, res);
+   });
+   server.Delete(R"(/api/delete-software-config/(\d+))", [this](const httplib::Request& req, httplib::Response& res)
+   {
+      DeleteSoftwareConfigRequest(req, res);
    });
 
    server.Get("/api/list-tests", [this](const httplib::Request& req, httplib::Response& res)
@@ -84,6 +162,10 @@ void Server::RegisterRoutes()
    {
       CreateTestRequest(req, res);
    });
+   server.Delete(R"(/api/delete-test/(\d+))", [this](const httplib::Request& req, httplib::Response& res)
+   {
+      DeleteTestRequest(req, res);
+   });
 
    server.Get("/api/list-test-configs", [this](const httplib::Request& req, httplib::Response& res)
    {
@@ -92,6 +174,10 @@ void Server::RegisterRoutes()
    server.Post("/api/create-test-config", [this](const httplib::Request& req, httplib::Response& res)
    {
       CreateTestConfigRequest(req, res);
+   });
+   server.Delete(R"(/api/delete-test-config/(\d+))", [this](const httplib::Request& req, httplib::Response& res)
+   {
+      DeleteTestConfigRequest(req, res);
    });
 
    server.Get("/api/run/list", [this](const httplib::Request& req, httplib::Response& res)
@@ -102,10 +188,19 @@ void Server::RegisterRoutes()
    {
       CreateBenchmarkRunRequest(req, res);
    });
+   server.Delete(R"(/api/delete-run/(\d+))", [this](const httplib::Request& req, httplib::Response& res)
+   {
+      DeleteBenchmarkRunRequest(req, res);
+   });
 
    server.Post("/api/import/files", [this](const httplib::Request& req, httplib::Response& res)
    {
       ImportFiles(req, res);
+   });
+
+   server.Post("/api/testing/reset", [this](const httplib::Request& req, httplib::Response& res)
+   {
+      ResetDatabaseRequest(req, res);
    });
 }
 
@@ -162,6 +257,11 @@ void Server::CreateMachineRequest(const httplib::Request& req, httplib::Response
    InsertEntityHttp(db, machineEntity, req, res);
 }
 
+void Server::DeleteMachineRequest(const httplib::Request& req, httplib::Response& res)
+{
+   DeleteEntityHttp(req, res, "Machine");
+}
+
 void Server::ListHardwareConfigsRequest(const httplib::Request&, httplib::Response& res)
 {
    EntityDescriptor entity;
@@ -207,6 +307,11 @@ void Server::CreateHardwareConfigRequest(const httplib::Request& req, httplib::R
    InsertEntityHttp(db, machineEntity, req, res);
 }
 
+void Server::DeleteHardwareConfigRequest(const httplib::Request& req, httplib::Response& res)
+{
+   DeleteEntityHttp(req, res, "HardwareConfiguration");
+}
+
 void Server::ListSoftwareEnvironmentsRequest(const httplib::Request&, httplib::Response& res)
 {
    EntityDescriptor entity;
@@ -245,6 +350,11 @@ void Server::CreateSoftwareEnvironmentRequest(const httplib::Request& req, httpl
    entity.validator = ValidateSoftwareEnvironment;
 
    InsertEntityHttp(db, entity, req, res);
+}
+
+void Server::DeleteSoftwareEnvironmentRequest(const httplib::Request& req, httplib::Response& res)
+{
+   DeleteEntityHttp(req, res, "SoftwareEnvironment");
 }
 
 void Server::ListSoftwareConfigsRequest(const httplib::Request&, httplib::Response& res)
@@ -291,6 +401,11 @@ void Server::CreateSoftwareConfigRequest(const httplib::Request& req, httplib::R
    InsertEntityHttp(db, entity, req, res);
 }
 
+void Server::DeleteSoftwareConfigRequest(const httplib::Request& req, httplib::Response& res)
+{
+   DeleteEntityHttp(req, res, "SoftwareConfiguration");
+}
+
 void Server::ListTestsRequest(const httplib::Request&, httplib::Response& res)
 {
    EntityDescriptor entity;
@@ -328,6 +443,11 @@ void Server::CreateTestRequest(const httplib::Request& req, httplib::Response& r
    InsertEntityHttp(db, entity, req, res);
 }
 
+void Server::DeleteTestRequest(const httplib::Request& req, httplib::Response& res)
+{
+   DeleteEntityHttp(req, res, "Test");
+}
+
 void Server::ListTestConfigsRequest(const httplib::Request&, httplib::Response& res)
 {
    EntityDescriptor entity;
@@ -362,6 +482,11 @@ void Server::CreateTestConfigRequest(const httplib::Request& req, httplib::Respo
    };
 
    InsertEntityHttp(db, entity, req, res);
+}
+
+void Server::DeleteTestConfigRequest(const httplib::Request& req, httplib::Response& res)
+{
+   DeleteEntityHttp(req, res, "TestConfiguration");
 }
 
 void Server::ListBenchmarkRunsRequest(const httplib::Request& req, httplib::Response& res)
@@ -557,6 +682,111 @@ void Server::CreateBenchmarkRunRequest(const httplib::Request& req, httplib::Res
    res.set_content(response.dump(), "application/json");
 }
 
+void Server::DeleteBenchmarkRunRequest(const httplib::Request& req, httplib::Response& res)
+{
+   int id = 0;
+   if (!TryParsePathId(req, id))
+   {
+      SetJsonError(res, 400, "Invalid id");
+      return;
+   }
+
+   char* err = nullptr;
+   if (sqlite3_exec(db.GetHandle(), "BEGIN TRANSACTION;", nullptr, nullptr, &err) != SQLITE_OK)
+   {
+      const std::string message = err ? err : "Failed to start transaction";
+      sqlite3_free(err);
+      SetJsonError(res, 500, message);
+      return;
+   }
+
+   int affectedRows = 0;
+   auto deleteResult = DeleteByField(db.GetHandle(), "Origin", "RunId", id, affectedRows);
+   if (!deleteResult.has_value())
+      deleteResult = DeleteByField(db.GetHandle(), "Result", "RunId", id, affectedRows);
+   if (!deleteResult.has_value())
+      deleteResult = DeleteByField(db.GetHandle(), "BenchmarkRun", "Id", id, affectedRows);
+
+   if (deleteResult.has_value())
+   {
+      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+      SetJsonError(res, 500, deleteResult.value());
+      return;
+   }
+
+   if (affectedRows == 0)
+   {
+      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+      SetJsonError(res, 404, "Entity not found");
+      return;
+   }
+
+   if (sqlite3_exec(db.GetHandle(), "COMMIT;", nullptr, nullptr, &err) != SQLITE_OK)
+   {
+      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+      const std::string message = err ? err : "Failed to commit transaction";
+      sqlite3_free(err);
+      SetJsonError(res, 500, message);
+      return;
+   }
+
+   SetJsonOk(res);
+}
+
+void Server::ResetDatabaseRequest(const httplib::Request& req, httplib::Response& res)
+{
+   if (!req.has_param("confirm") || req.get_param_value("confirm") != "yes")
+   {
+      SetJsonError(res, 400, "Reset requires confirm=yes");
+      return;
+   }
+
+   const std::vector<std::string> tables = {
+      "Origin",
+      "Result",
+      "BenchmarkRun",
+      "TestConfiguration",
+      "Test",
+      "SoftwareConfiguration",
+      "SoftwareEnvironment",
+      "HardwareConfiguration",
+      "Machine"
+   };
+
+   char* err = nullptr;
+   if (sqlite3_exec(db.GetHandle(), "BEGIN TRANSACTION;", nullptr, nullptr, &err) != SQLITE_OK)
+   {
+      const std::string message = err ? err : "Failed to start transaction";
+      sqlite3_free(err);
+      SetJsonError(res, 500, message);
+      return;
+   }
+
+   for (const auto& table : tables)
+   {
+      const std::string sql = "DELETE FROM " + table + ";";
+      if (sqlite3_exec(db.GetHandle(), sql.c_str(), nullptr, nullptr, &err) != SQLITE_OK)
+      {
+         sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+         const std::string message = err ? err : "Failed to reset database";
+         sqlite3_free(err);
+         SetJsonError(res, 500, message);
+         return;
+      }
+   }
+
+   if (sqlite3_exec(db.GetHandle(), "COMMIT;", nullptr, nullptr, &err) != SQLITE_OK)
+   {
+      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+      const std::string message = err ? err : "Failed to commit transaction";
+      sqlite3_free(err);
+      SetJsonError(res, 500, message);
+      return;
+   }
+
+   SetJsonOk(res);
+}
+
 void Server::ImportFiles(const httplib::Request& req, httplib::Response& res)
 {
    json response;
@@ -708,6 +938,44 @@ std::optional<std::string> Server::InsertEntity(Database& db, const Server::Enti
 
    sqlite3_finalize(stmt);
    return std::nullopt;
+}
+
+void Server::DeleteEntityHttp(const httplib::Request& req, httplib::Response& res, const std::string& table)
+{
+   int id = 0;
+   if (!TryParsePathId(req, id))
+   {
+      SetJsonError(res, 400, "Invalid id");
+      return;
+   }
+
+   int affectedRows = 0;
+   const auto deleteResult = DeleteEntityById(table, id, affectedRows);
+   if (deleteResult.has_value())
+   {
+      if (IsForeignKeyConstraintError(deleteResult.value()))
+      {
+         SetJsonError(res, 409, "Entity is still referenced");
+         return;
+      }
+
+      SetJsonError(res, 500, deleteResult.value());
+      return;
+   }
+
+   if (affectedRows == 0)
+   {
+      SetJsonError(res, 404, "Entity not found");
+      return;
+   }
+
+   SetJsonOk(res);
+}
+
+std::optional<std::string> Server::DeleteEntityById(const std::string& table, int id, int& affectedRows)
+{
+   db.Execute("PRAGMA foreign_keys = ON;");
+   return DeleteByField(db.GetHandle(), table, "Id", id, affectedRows);
 }
 
 std::string Server::BuildSqlInsertQuery(const Server::EntityDescriptor& entity)

@@ -38,19 +38,28 @@ private:
 
    void ListMachinesRequest(const httplib::Request& req, httplib::Response& res);
    void CreateMachineRequest(const httplib::Request& req, httplib::Response& res);
+   void DeleteMachineRequest(const httplib::Request& req, httplib::Response& res);
    void ListHardwareConfigsRequest(const httplib::Request& req, httplib::Response& res);
    void CreateHardwareConfigRequest(const httplib::Request& req, httplib::Response& res);
+   void DeleteHardwareConfigRequest(const httplib::Request& req, httplib::Response& res);
    void ListSoftwareEnvironmentsRequest(const httplib::Request& req, httplib::Response& res);
    void CreateSoftwareEnvironmentRequest(const httplib::Request& req, httplib::Response& res);
+   void DeleteSoftwareEnvironmentRequest(const httplib::Request& req, httplib::Response& res);
    void ListSoftwareConfigsRequest(const httplib::Request& req, httplib::Response& res);
    void CreateSoftwareConfigRequest(const httplib::Request& req, httplib::Response& res);
+   void DeleteSoftwareConfigRequest(const httplib::Request& req, httplib::Response& res);
    void ListTestsRequest(const httplib::Request& req, httplib::Response& res);
    void CreateTestRequest(const httplib::Request& req, httplib::Response& res);
+   void DeleteTestRequest(const httplib::Request& req, httplib::Response& res);
    void ListTestConfigsRequest(const httplib::Request& req, httplib::Response& res);
    void CreateTestConfigRequest(const httplib::Request& req, httplib::Response& res);
+   void DeleteTestConfigRequest(const httplib::Request& req, httplib::Response& res);
 
    void ListBenchmarkRunsRequest(const httplib::Request& req, httplib::Response& res);
    void CreateBenchmarkRunRequest(const httplib::Request& req, httplib::Response& res);
+   void DeleteBenchmarkRunRequest(const httplib::Request& req, httplib::Response& res);
+
+   void ResetDatabaseRequest(const httplib::Request& req, httplib::Response& res);
 
    void ImportFiles(const httplib::Request& req, httplib::Response& res);
 
@@ -60,6 +69,9 @@ private:
 
    void InsertEntityHttp(Database& db, const Server::EntityDescriptor& entity, const httplib::Request& req, httplib::Response& res);
    std::optional<std::string> InsertEntity(Database& db, const Server::EntityDescriptor& entity, const nlohmann::json& input);
+
+   void DeleteEntityHttp(const httplib::Request& req, httplib::Response& res, const std::string& table);
+   std::optional<std::string> DeleteEntityById(const std::string& table, int id, int& affectedRows);
 
    std::string BuildSqlInsertQuery(const Server::EntityDescriptor& entity);
 
