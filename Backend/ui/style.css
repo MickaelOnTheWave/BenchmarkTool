@@ -144,3 +144,90 @@ td {
 .panel {
     margin-bottom: 12px;
 }
+
+#detailsSection {
+    height: 100%;
+}
+
+.details-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    height: calc(100% - 48px);
+}
+
+.details-table-panel {
+    min-width: 0;
+    min-height: 0;
+    background: white;
+    border: 1px solid #e2e5ee;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.details-table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    border-bottom: 1px solid #edf0f5;
+}
+
+.details-table-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.details-table-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.details-table-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+.details-table-wrap table {
+    border-radius: 0;
+}
+
+.details-table-wrap th,
+.details-table-wrap td {
+    white-space: nowrap;
+}
+
+.details-table-wrap tbody tr {
+    cursor: pointer;
+}
+
+.details-table-wrap tbody tr:hover,
+.selected-row {
+    background: #eef3ff;
+}
+
+.details-table-status {
+    padding: 8px 12px;
+    border-top: 1px solid #edf0f5;
+    color: #667085;
+    font-size: 12px;
+}
+
+.danger-button {
+    background: #d64545;
+}
+
+.danger-button:hover {
+    background: #bd3636;
+}
+
+button:disabled,
+button:disabled:hover {
+    background: #b8bfcc;
+    cursor: not-allowed;
+}
