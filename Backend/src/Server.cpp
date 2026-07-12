@@ -57,6 +57,22 @@ namespace
       return message.find("FOREIGN KEY constraint failed") != std::string::npos;
    }
 
+   bool TryFormatNotNullConstraintError(const std::string& sqliteMessage, std::string& formattedMessage)
+   {
+      const std::string prefix = "NOT NULL constraint failed: ";
+      const size_t prefixPos = sqliteMessage.find(prefix);
+      if (prefixPos == std::string::npos)
+         return false;
+
+      std::string field = sqliteMessage.substr(prefixPos + prefix.size());
+      const size_t dotPos = field.rfind('.');
+      if (dotPos != std::string::npos)
+         field = field.substr(dotPos + 1);
+
+      formattedMessage = "missing data for field " + field;
+      return true;
+   }
+
    std::optional<std::string> DeleteByField(sqlite3* db, const std::string& table, const std::string& field, int id, int& affectedRows)
    {
       const std::string sql = "DELETE FROM " + table + " WHERE " + field + " = ?;";
@@ -304,6 +320,8 @@ void Server::CreateHardwareConfigRequest(const httplib::Request& req, httplib::R
       sqlite3_bind_text(stmt, 6, j.value("settings", "").c_str(), -1, SQLITE_TRANSIENT);
    };
 
+   machineEntity.validator = ValidateHardwareConfiguration;
+
    InsertEntityHttp(db, machineEntity, req, res);
 }
 
@@ -398,6 +416,8 @@ void Server::CreateSoftwareConfigRequest(const httplib::Request& req, httplib::R
       sqlite3_bind_text(stmt, 5, j.value("settings", "{}").c_str(), -1, SQLITE_TRANSIENT);
    };
 
+   entity.validator = ValidateSoftwareConfiguration;
+
    InsertEntityHttp(db, entity, req, res);
 }
 
@@ -440,6 +460,8 @@ void Server::CreateTestRequest(const httplib::Request& req, httplib::Response& r
       sqlite3_bind_text(stmt, 3, j.value("iconPath", "").c_str(), -1, SQLITE_TRANSIENT);
    };
 
+   //entity.validator = ValidateTest;
+
    InsertEntityHttp(db, entity, req, res);
 }
 
@@ -480,6 +502,8 @@ void Server::CreateTestConfigRequest(const httplib::Request& req, httplib::Respo
       sqlite3_bind_int(stmt, 2, j.value("testId", 0));
       sqlite3_bind_text(stmt, 3, j.value("settings", "{}").c_str(), -1, SQLITE_TRANSIENT);
    };
+
+   //entity.validator = ValidateTestConfig;
 
    InsertEntityHttp(db, entity, req, res);
 }
@@ -897,7 +921,10 @@ void Server::InsertEntityHttp(Database& db, const Server::EntityDescriptor& enti
       return;
    }
 
-   const ErrorList validationErrors = entity.validator(entityJsonData);
+   ErrorList validationErrors;
+   if (entity.validator)
+      validationErrors = entity.validator(entityJsonData);
+
    if (!validationErrors.empty())
    {
       SetHttpResponse(res, validationErrors);
@@ -907,9 +934,20 @@ void Server::InsertEntityHttp(Database& db, const Server::EntityDescriptor& enti
    auto insertResult = InsertEntity(db, entity, entityJsonData);
    if (insertResult.has_value())
    {
-      res.status = 500;
+      std::string message = insertResult.value();
+      std::string formattedMessage;
+      if (TryFormatNotNullConstraintError(message, formattedMessage))
+      {
+         res.status = 400;
+         message = formattedMessage;
+      }
+      else
+      {
+         res.status = 500;
+      }
+
       response["status"] = "error";
-      response["message"] = insertResult.value();
+      response["message"] = message;
       res.set_content(response.dump(), "application/json");
       return;
    }

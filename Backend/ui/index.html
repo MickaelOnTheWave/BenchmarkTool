@@ -169,6 +169,17 @@
      </div>
    </div>
 
-   <input type="file" id="importFile" style="display:none" onchange="handleImport(event)">
+    <div id="detailsEntityDialog" class="modal" style="display:none;">
+        <div class="modal-content details-entity-dialog">
+            <h3 id="detailsEntityDialogTitle"></h3>
+            <div id="detailsEntityDialogFields"></div>
+            <div id="detailsEntityDialogError"></div>
+            <div class="dialog-actions" style="display: flex; gap: 8px;">
+                <button id="detailsEntitySubmitBtn">Create</button>
+                <button id="detailsEntityCancelBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <input type="file" id="importFile" style="display:none" onchange="handleImport(event)">
 </body>
 </html>

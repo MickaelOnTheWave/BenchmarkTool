@@ -110,14 +110,14 @@ button:active {
     transform: scale(0.98);
 }
 
-input, select {
+input, select, textarea {
     padding: 6px 8px;
     border-radius: 6px;
     border: 1px solid #ccc;
     outline: none;
 }
 
-input:focus, select:focus {
+input:focus, select:focus, textarea:focus {
     border-color: #4a6cf7;
 }
 
@@ -230,4 +230,47 @@ button:disabled,
 button:disabled:hover {
     background: #b8bfcc;
     cursor: not-allowed;
+}
+
+.details-entity-dialog {
+    width: 420px;
+    max-height: 86vh;
+    overflow: auto;
+}
+
+#detailsEntityDialogFields {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.details-dialog-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.details-dialog-field input,
+.details-dialog-field select,
+.details-dialog-field textarea {
+    font: inherit;
+    font-weight: 400;
+}
+
+.details-dialog-field textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+#detailsEntityDialogError {
+    color: #bd3636;
+    white-space: pre-wrap;
+    font-size: 13px;
+}
+
+.dialog-actions {
+    justify-content: flex-end;
+    margin-top: 8px;
 }

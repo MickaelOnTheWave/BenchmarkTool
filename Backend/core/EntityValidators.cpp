@@ -140,3 +140,32 @@ ErrorList ValidateSoftwareEnvironment(const nlohmann::json& j)
    CheckOptionalString(j, errors, "osVersion");
    return errors;
 }
+
+ErrorList ValidateSoftwareConfiguration(const nlohmann::json& j)
+{
+   ErrorList errors;
+   RequireString(j, errors, "name");
+   RequirePositiveInt(j, errors, "softwareEnvironmentId");
+   RequireString(j, errors, "driverVersion");
+   CheckOptionalString(j, errors, "mode");
+   CheckOptionalJson(j, errors, "settings");
+   return errors;
+}
+
+ErrorList ValidateTest(const nlohmann::json& j)
+{
+   ErrorList errors;
+   RequireString(j, errors, "name");
+   CheckOptionalString(j, errors, "description");
+   CheckOptionalString(j, errors, "iconPath");
+   return errors;
+}
+
+ErrorList ValidateTestConfiguration(const nlohmann::json& j)
+{
+   ErrorList errors;
+   RequireString(j, errors, "name");
+   RequirePositiveInt(j, errors, "testId");
+   CheckOptionalJson(j, errors, "settings");
+   return errors;
+}

@@ -32,6 +32,8 @@ const detailsTableDefinitions = [
         id: "machines",
         title: "Machines",
         endpoint: "/api/list-machines",
+        createEndpoint: "/api/create-machine",
+        deleteEndpoint: "/api/delete-machine",
         rootField: "machines",
         columns: [
             { key: "id", label: "Id" },
@@ -40,12 +42,21 @@ const detailsTableDefinitions = [
             { key: "gpu", label: "Gpu" },
             { key: "ramGb", label: "RamGb" },
             { key: "motherboard", label: "Motherboard" }
+        ],
+        fields: [
+            { key: "name", label: "Name", type: "text" },
+            { key: "cpu", label: "Cpu", type: "text" },
+            { key: "gpu", label: "Gpu", type: "text" },
+            { key: "ramGb", label: "RamGb", type: "number" },
+            { key: "motherboard", label: "Motherboard", type: "text" }
         ]
     },
     {
         id: "hardwareConfigs",
         title: "Hardware Configs",
         endpoint: "/api/list-hardware-configs",
+        createEndpoint: "/api/create-hardware-config",
+        deleteEndpoint: "/api/delete-hardware-config",
         rootField: "configs",
         columns: [
             { key: "id", label: "Id" },
@@ -55,12 +66,27 @@ const detailsTableDefinitions = [
             { key: "gpuFreqMhz", label: "GpuFreqMhz" },
             { key: "ramFreqMhz", label: "RamFreqMhz" },
             { key: "settings", label: "Settings" }
+        ],
+        fields: [
+            { key: "name", label: "Name", type: "text" },
+            {
+                key: "machineId",
+                label: "Machine",
+                type: "select",
+                options: { endpoint: "/api/list-machines", rootField: "machines", valueField: "id", displayField: "name" }
+            },
+            { key: "cpuFreqGhz", label: "CpuFreqGhz", type: "number" },
+            { key: "gpuFreqMhz", label: "GpuFreqMhz", type: "number" },
+            { key: "ramFreqMhz", label: "RamFreqMhz", type: "number" },
+            { key: "settings", label: "Settings", type: "textarea", defaultValue: "{}" }
         ]
     },
     {
         id: "softwareEnvironments",
         title: "Software Environments",
         endpoint: "/api/list-software-environments",
+        createEndpoint: "/api/create-software-environment",
+        deleteEndpoint: "/api/delete-software-environment",
         rootField: "softwareEnvironments",
         columns: [
             { key: "id", label: "Id" },
@@ -68,12 +94,20 @@ const detailsTableDefinitions = [
             { key: "os", label: "Os" },
             { key: "osVersion", label: "OsVersion" },
             { key: "driverFamily", label: "DriverFamily" }
+        ],
+        fields: [
+            { key: "name", label: "Name", type: "text" },
+            { key: "os", label: "Os", type: "text" },
+            { key: "osVersion", label: "OsVersion", type: "text" },
+            { key: "driverFamily", label: "DriverFamily", type: "text" }
         ]
     },
     {
         id: "softwareConfigs",
         title: "Software Configs",
         endpoint: "/api/list-software-configs",
+        createEndpoint: "/api/create-software-config",
+        deleteEndpoint: "/api/delete-software-config",
         rootField: "softwareConfigurations",
         columns: [
             { key: "id", label: "Id" },
@@ -82,30 +116,61 @@ const detailsTableDefinitions = [
             { key: "driverVersion", label: "DriverVersion" },
             { key: "mode", label: "Mode" },
             { key: "settings", label: "Settings" }
+        ],
+        fields: [
+            { key: "name", label: "Name", type: "text" },
+            {
+                key: "softwareEnvironmentId",
+                label: "Software Environment",
+                type: "select",
+                options: { endpoint: "/api/list-software-environments", rootField: "softwareEnvironments", valueField: "id", displayField: "name" }
+            },
+            { key: "driverVersion", label: "DriverVersion", type: "text" },
+            { key: "mode", label: "Mode", type: "text" },
+            { key: "settings", label: "Settings", type: "textarea", defaultValue: "{}" }
         ]
     },
     {
         id: "tests",
         title: "Tests",
         endpoint: "/api/list-tests",
+        createEndpoint: "/api/create-test",
+        deleteEndpoint: "/api/delete-test",
         rootField: "tests",
         columns: [
             { key: "id", label: "Id" },
             { key: "name", label: "Name" },
             { key: "description", label: "Description" },
             { key: "iconPath", label: "IconPath" }
+        ],
+        fields: [
+            { key: "name", label: "Name", type: "text" },
+            { key: "description", label: "Description", type: "text" },
+            { key: "iconPath", label: "IconPath", type: "text" }
         ]
     },
     {
         id: "testConfigs",
         title: "Test Configs",
         endpoint: "/api/list-test-configs",
+        createEndpoint: "/api/create-test-config",
+        deleteEndpoint: "/api/delete-test-config",
         rootField: "testConfigurations",
         columns: [
             { key: "id", label: "Id" },
             { key: "name", label: "Name" },
             { key: "testId", label: "TestId" },
             { key: "settings", label: "Settings" }
+        ],
+        fields: [
+            { key: "name", label: "Name", type: "text" },
+            {
+                key: "testId",
+                label: "Test",
+                type: "select",
+                options: { endpoint: "/api/list-tests", rootField: "tests", valueField: "id", displayField: "name" }
+            },
+            { key: "settings", label: "Settings", type: "textarea", defaultValue: "{}" }
         ]
     }
 ];
@@ -139,14 +204,14 @@ function createDetailsTable(definition)
     const addButton = document.createElement("button");
     addButton.type = "button";
     addButton.textContent = "Add";
-    addButton.onclick = () => showDetailsPlaceholder(definition, "Add");
+    addButton.onclick = () => openDetailsAddDialog(definition);
 
     const removeButton = document.createElement("button");
     removeButton.type = "button";
     removeButton.textContent = "Remove";
     removeButton.className = "danger-button";
     removeButton.disabled = true;
-    removeButton.onclick = () => showDetailsPlaceholder(definition, "Remove");
+    removeButton.onclick = () => removeDetailsEntity(definition);
 
     actions.appendChild(addButton);
     actions.appendChild(removeButton);
@@ -244,19 +309,190 @@ function selectDetailsRow(panel, rowElement, selectedId, removeButton)
     removeButton.disabled = false;
 }
 
-function showDetailsPlaceholder(definition, action)
+async function openDetailsAddDialog(definition)
+{
+    const dialog = document.getElementById("detailsEntityDialog");
+    const title = document.getElementById("detailsEntityDialogTitle");
+    const fieldsContainer = document.getElementById("detailsEntityDialogFields");
+    const error = document.getElementById("detailsEntityDialogError");
+    const submitButton = document.getElementById("detailsEntitySubmitBtn");
+    const cancelButton = document.getElementById("detailsEntityCancelBtn");
+
+    title.textContent = `Add ${definition.title}`;
+    fieldsContainer.innerHTML = "";
+    error.textContent = "";
+    submitButton.disabled = false;
+    submitButton.onclick = () => submitDetailsEntity(definition);
+    cancelButton.onclick = closeDetailsEntityDialog;
+
+    for (const field of definition.fields)
+    {
+        const row = await createDetailsDialogField(field, submitButton);
+        fieldsContainer.appendChild(row);
+    }
+
+    dialog.style.display = "flex";
+}
+
+async function createDetailsDialogField(field, submitButton)
+{
+    const row = document.createElement("label");
+    row.className = "details-dialog-field";
+
+    const label = document.createElement("span");
+    label.textContent = field.label;
+    row.appendChild(label);
+
+    let input;
+    if (field.type === "textarea")
+    {
+        input = document.createElement("textarea");
+        input.value = field.defaultValue || "";
+    }
+    else if (field.type === "select")
+    {
+        input = document.createElement("select");
+        await fillDetailsSelect(input, field, submitButton);
+    }
+    else
+    {
+        input = document.createElement("input");
+        input.type = field.type;
+        if (field.defaultValue !== undefined)
+            input.value = field.defaultValue;
+    }
+
+    input.dataset.fieldKey = field.key;
+    input.dataset.fieldType = field.type;
+    row.appendChild(input);
+    return row;
+}
+
+async function fillDetailsSelect(select, field, submitButton)
+{
+    const response = await fetch(field.options.endpoint);
+    const data = await response.json();
+    const items = data[field.options.rootField] || [];
+
+    if (items.length === 0)
+    {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = `No ${field.label} available`;
+        select.appendChild(option);
+        select.disabled = true;
+        submitButton.disabled = true;
+        return;
+    }
+
+    for (const item of items)
+    {
+        const option = document.createElement("option");
+        option.value = item[field.options.valueField];
+        option.textContent = item[field.options.displayField];
+        select.appendChild(option);
+    }
+}
+
+async function submitDetailsEntity(definition)
+{
+    const dialog = document.getElementById("detailsEntityDialog");
+    const error = document.getElementById("detailsEntityDialogError");
+    const submitButton = document.getElementById("detailsEntitySubmitBtn");
+    const inputs = document.querySelectorAll("#detailsEntityDialogFields input, #detailsEntityDialogFields select, #detailsEntityDialogFields textarea");
+    const payload = {};
+
+    error.textContent = "";
+    submitButton.disabled = true;
+
+    for (const input of inputs)
+    {
+        const key = input.dataset.fieldKey;
+        const type = input.dataset.fieldType;
+        payload[key] = type === "number" || type === "select" ? Number(input.value || 0) : input.value;
+    }
+
+    try
+    {
+        const response = await fetch(definition.createEndpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok)
+        {
+            error.textContent = await readErrorMessage(response);
+            submitButton.disabled = false;
+            return;
+        }
+
+        dialog.style.display = "none";
+        await refreshDetailsTable(definition);
+    }
+    catch (err)
+    {
+        console.error(err);
+        error.textContent = "Failed to create entry.";
+        submitButton.disabled = false;
+    }
+}
+
+function closeDetailsEntityDialog()
+{
+    document.getElementById("detailsEntityDialog").style.display = "none";
+}
+
+async function removeDetailsEntity(definition)
 {
     const panel = document.getElementById(`${definition.id}Table`).closest(".details-table-panel");
     const selectedId = panel.dataset.selectedId;
 
-    if (action === "Remove" && !selectedId)
+    if (!selectedId)
     {
         alert("Select a row to remove first.");
         return;
     }
 
-    const suffix = action === "Remove" ? ` for id ${selectedId}` : "";
-    alert(`${action} ${definition.title}${suffix}: backend wiring will be added later.`);
+    if (!confirm(`Delete selected ${definition.title} entry?`))
+        return;
+
+    try
+    {
+        const response = await fetch(`${definition.deleteEndpoint}/${selectedId}`, { method: "DELETE" });
+        if (!response.ok)
+        {
+            alert(await readErrorMessage(response));
+            return;
+        }
+
+        await refreshDetailsTable(definition);
+    }
+    catch (err)
+    {
+        console.error(err);
+        alert("Failed to delete entry.");
+    }
+}
+
+async function readErrorMessage(response)
+{
+    const prefix = `Request failed (${response.status})`;
+    const text = await response.text();
+    if (!text)
+        return prefix;
+
+    try
+    {
+        const data = JSON.parse(text);
+        if (Array.isArray(data.errors) && data.errors.length > 0)
+            return `${prefix}: ${data.errors.join("\n")}`;
+        return `${prefix}: ${data.message || text}`;
+    }
+    catch
+    {
+        return `${prefix}: ${text}`;
+    }
 }
 
 function formatDetailsValue(value)
