@@ -321,3 +321,96 @@ button:disabled:hover {
     font-weight: 600;
     white-space: pre-wrap;
 }
+
+/* ------------------------------------------------------------------ */
+/* Import plan dialog                                                  */
+/* ------------------------------------------------------------------ */
+
+.import-plan-dialog {
+    width: min(1000px, 95vw);
+    max-height: 88vh;
+}
+
+#importPlanBody {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow: auto;
+    min-height: 0;
+}
+
+.import-plan-row {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 16px;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.import-plan-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.import-plan-actions h4 {
+    margin: 0 0 4px;
+    font-size: 14px;
+}
+
+.import-plan-actions label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.import-plan-combo {
+    font: inherit;
+    font-weight: 400;
+    margin-left: 20px;
+}
+
+.import-plan-combo:disabled {
+    opacity: 0.5;
+}
+
+.import-plan-fields {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px 12px;
+    align-content: start;
+}
+
+.import-plan-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.import-plan-field input,
+.import-plan-field textarea {
+    font: inherit;
+    font-weight: 400;
+}
+
+.import-plan-field textarea {
+    min-height: 60px;
+    resize: vertical;
+}
+
+.import-plan-field input.readonly,
+.import-plan-field textarea.readonly {
+    background: #f3f4f6;
+    color: #667085;
+}
+
+#importPlanError {
+    color: #bd3636;
+    white-space: pre-wrap;
+    font-size: 13px;
+}

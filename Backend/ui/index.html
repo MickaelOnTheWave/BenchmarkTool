@@ -181,7 +181,7 @@
         </div>
     </div>
 
-     <div id="importResultDialog" class="modal" style="display:none;">
+      <div id="importResultDialog" class="modal" style="display:none;">
          <div class="modal-content import-result-dialog">
              <h3 id="importResultDialogTitle">Import result</h3>
              <div id="importResultDialogContent"></div>
@@ -190,6 +190,19 @@
              </div>
          </div>
      </div>
+
+     <div id="importPlanDialog" class="modal" style="display:none;">
+         <div class="modal-content import-plan-dialog">
+             <h3 id="importPlanDialogTitle">Import</h3>
+             <div id="importPlanBody"></div>
+             <div id="importPlanError"></div>
+             <div class="dialog-actions" style="display: flex; gap: 8px;">
+                 <button id="importPlanConfirmBtn" disabled>Confirm</button>
+                 <button id="importPlanCancelBtn" onclick="closeImportPlanDialog()">Cancel</button>
+             </div>
+         </div>
+     </div>
+
      <input type="file" id="importFile" style="display:none" onchange="handleImport(event)">
 </body>
 </html>

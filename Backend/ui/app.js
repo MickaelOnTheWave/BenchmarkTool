@@ -670,7 +670,7 @@ async function handleImport(event)
     try
     {
         const result = await uploadFiles([file]);
-        showImportResultDialog(result);
+        await showImportPlanDialog(result);
     }
     catch (err)
     {
@@ -759,6 +759,246 @@ function closeImportResultDialog()
     document.getElementById("importResultDialog").style.display = "none";
 }
 
+// ---------------------------------------------------------------------------
+// Import plan dialog
+//
+// Presents the normalizer's execution plan (result.files[0].actionData) as an
+// editable form. Each entity is a row: on the left the reuse/create action
+// chooser (+ combobox of existing entities), on the right the entity fields.
+// Reuses the metadata in detailsTableDefinitions for field/list definitions.
+// ---------------------------------------------------------------------------
+
+// Ordered mapping: normalizer plan key -> detailsTableDefinitions id.
+// Parent foreign-key fields are hidden; linkage is implied by the parent row.
+const importPlanSections = [
+    { planKey: "machine",             definitionId: "machines",             parentKey: null },
+    { planKey: "hardwareconfig",      definitionId: "hardwareConfigs",      parentKey: "machineId" },
+    { planKey: "softwareenvironment", definitionId: "softwareEnvironments", parentKey: null },
+    { planKey: "softwareconfig",      definitionId: "softwareConfigs",      parentKey: "softwareEnvironmentId" },
+    { planKey: "test",                definitionId: "tests",                parentKey: null },
+    { planKey: "testconfig",          definitionId: "testConfigs",          parentKey: "testId" }
+];
+
+function getDefinitionById(id)
+{
+    return detailsTableDefinitions.find(d => d.id === id);
+}
+
+async function showImportPlanDialog(result)
+{
+    const fileInfo = result.files && result.files.length > 0 ? result.files[0] : null;
+    if (!fileInfo || fileInfo.format === "unknown")
+    {
+        showImportErrorDialog("The file was not recognized as a supported benchmark file");
+        return;
+    }
+
+    const actionData = fileInfo.actionData || {};
+    const body = document.getElementById("importPlanBody");
+    const error = document.getElementById("importPlanError");
+
+    body.innerHTML = "";
+    error.textContent = "";
+
+    const itemsBySection = await loadImportPlanLists();
+
+    for (const section of importPlanSections)
+    {
+        const definition = getDefinitionById(section.definitionId);
+        const subPlan = actionData[section.planKey] || {};
+        const items = itemsBySection[section.definitionId] || [];
+        body.appendChild(createImportPlanRow(section, definition, subPlan, items));
+    }
+
+    document.getElementById("importPlanDialogTitle").textContent = `Import - ${fileInfo.name || "file"}`;
+    document.getElementById("importPlanDialog").style.display = "flex";
+}
+
+async function loadImportPlanLists()
+{
+    const entries = await Promise.all(importPlanSections.map(async section =>
+    {
+        const definition = getDefinitionById(section.definitionId);
+        try
+        {
+            const response = await fetch(definition.endpoint);
+            const data = await response.json();
+            return [section.definitionId, data[definition.rootField] || []];
+        }
+        catch (err)
+        {
+            console.error(`Failed to load ${definition.title}`, err);
+            return [section.definitionId, []];
+        }
+    }));
+
+    return Object.fromEntries(entries);
+}
+
+function createImportPlanRow(section, definition, subPlan, items)
+{
+    const row = document.createElement("section");
+    row.className = "import-plan-row";
+    row.dataset.planKey = section.planKey;
+
+    const isReuse = subPlan.action === "reuse";
+
+    // ---- Left: action chooser --------------------------------------------
+    const actions = document.createElement("div");
+    actions.className = "import-plan-actions";
+
+    const heading = document.createElement("h4");
+    heading.textContent = definition.title;
+    actions.appendChild(heading);
+
+    const radioName = `plan-action-${section.planKey}`;
+
+    const reuseLabel = document.createElement("label");
+    const reuseRadio = document.createElement("input");
+    reuseRadio.type = "radio";
+    reuseRadio.name = radioName;
+    reuseRadio.value = "reuse";
+    reuseRadio.checked = isReuse;
+    reuseRadio.disabled = items.length === 0;
+    reuseLabel.appendChild(reuseRadio);
+    reuseLabel.appendChild(document.createTextNode(items.length === 0 ? " Reuse (none available)" : " Reuse"));
+
+    const combo = document.createElement("select");
+    combo.className = "import-plan-combo";
+    for (const item of items)
+    {
+        const option = document.createElement("option");
+        option.value = item.id;
+        option.textContent = item.name || `#${item.id}`;
+        combo.appendChild(option);
+    }
+    if (isReuse && subPlan.id !== undefined)
+        combo.value = subPlan.id;
+
+    const createLabel = document.createElement("label");
+    const createRadio = document.createElement("input");
+    createRadio.type = "radio";
+    createRadio.name = radioName;
+    createRadio.value = "create";
+    createRadio.checked = !isReuse;
+    createLabel.appendChild(createRadio);
+    createLabel.appendChild(document.createTextNode(" Create"));
+
+    actions.appendChild(reuseLabel);
+    actions.appendChild(combo);
+    actions.appendChild(createLabel);
+
+    // ---- Right: entity fields --------------------------------------------
+    const fieldsWrap = document.createElement("div");
+    fieldsWrap.className = "import-plan-fields";
+
+    const visibleFields = definition.fields.filter(f => f.key !== section.parentKey);
+    for (const field of visibleFields)
+    {
+        fieldsWrap.appendChild(createImportPlanField(field));
+    }
+
+    // ---- Wiring ----------------------------------------------------------
+    // Values proposed by the normalizer when creating a new entity. Restored
+    // whenever the user switches (back) to Create.
+    const createDefaults = subPlan.data || {};
+
+    const showSelectedItem = () =>
+    {
+        const selected = items.find(it => String(it.id) === String(combo.value));
+        if (selected)
+            populateImportPlanFields(fieldsWrap, selected);
+    };
+
+    const applyState = () =>
+    {
+        const reuse = reuseRadio.checked;
+        combo.disabled = !reuse;
+        setImportPlanFieldsReadOnly(fieldsWrap, reuse);
+
+        if (reuse)
+            showSelectedItem();
+        else
+            fillImportPlanFields(fieldsWrap, createDefaults);
+    };
+
+    reuseRadio.onchange = applyState;
+    createRadio.onchange = applyState;
+    combo.onchange = () =>
+    {
+        if (reuseRadio.checked)
+            showSelectedItem();
+    };
+
+    applyState();
+
+    row.appendChild(actions);
+    row.appendChild(fieldsWrap);
+    return row;
+}
+
+function createImportPlanField(field)
+{
+    const wrap = document.createElement("label");
+    wrap.className = "import-plan-field";
+
+    const label = document.createElement("span");
+    label.textContent = field.label;
+    wrap.appendChild(label);
+
+    let input;
+    if (field.type === "textarea")
+    {
+        input = document.createElement("textarea");
+    }
+    else
+    {
+        input = document.createElement("input");
+        input.type = field.type === "number" ? "number" : "text";
+    }
+
+    input.dataset.fieldKey = field.key;
+    input.dataset.fieldType = field.type;
+    wrap.appendChild(input);
+    return wrap;
+}
+
+function importPlanFieldInputs(fieldsWrap)
+{
+    return fieldsWrap.querySelectorAll("input, textarea");
+}
+
+function fillImportPlanFields(fieldsWrap, data)
+{
+    for (const input of importPlanFieldInputs(fieldsWrap))
+    {
+        const key = input.dataset.fieldKey;
+        const value = data[key];
+        input.value = value === undefined || value === null ? "" : value;
+    }
+}
+
+function populateImportPlanFields(fieldsWrap, item)
+{
+    // List rows expose the same field keys as the create data, so we can
+    // fill straight from the selected existing entity.
+    fillImportPlanFields(fieldsWrap, item);
+}
+
+function setImportPlanFieldsReadOnly(fieldsWrap, readOnly)
+{
+    for (const input of importPlanFieldInputs(fieldsWrap))
+    {
+        input.readOnly = readOnly;
+        input.classList.toggle("readonly", readOnly);
+    }
+}
+
+function closeImportPlanDialog()
+{
+    document.getElementById("importPlanDialog").style.display = "none";
+}
+
 async function loadRuns()
 {
     const response = await fetch("/api/run/list");
@@ -820,3 +1060,4 @@ window.loadRunDropdowns = loadRunDropdowns;
 window.openImportDialog = openImportDialog;
 window.handleImport = handleImport;
 window.closeImportResultDialog = closeImportResultDialog;
+window.closeImportPlanDialog = closeImportPlanDialog;
