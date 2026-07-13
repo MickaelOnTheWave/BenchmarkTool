@@ -1,6 +1,7 @@
 #include "ThreeDMarkImporter.h"
 
 #include "tinyxml2.h"
+#include "Utils.h"
 #include "ZipArchive.h"
 
 using json = nlohmann::json;
@@ -134,7 +135,8 @@ void FillSoftwareInformation(tinyxml2::XMLDocument& doc, json& result)
    }
 
    auto directxNode = FindFirstElementByName(&doc, "DirectX_Info");
-   const std::string selectedGpu = result["machine"]["gpu"]["name"];
+
+   const std::string selectedGpu = Utils::GetNested(result, {"machine", "gpu", "name"});
    if (directxNode && selectedGpu != "")
    {
       auto directDrawNode = FindFirstElementByName(directxNode, "DirectDraw_Info");

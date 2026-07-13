@@ -1,8 +1,7 @@
 #include "Normalizer.h"
 
 #include "Database.h"
-
-#include <iostream>
+#include "Utils.h"
 
 using json = nlohmann::json;
 
@@ -47,9 +46,9 @@ json Normalizer::NormalizeMachine(const json& importedData)
    else
    {
       result["action"] = "create";
-      result["data"]["cpu"] = machineData["cpu"]["name"];
-      result["data"]["gpu"] = machineData["gpu"]["name"];
-      result["data"]["motherboard"] = machineData["motherboard"]["model"];
+      result["data"]["cpu"] = Utils::GetNested(machineData, {"cpu", "name"});
+      result["data"]["gpu"] = Utils::GetNested(machineData, {"gpu", "name"});
+      result["data"]["motherboard"] = Utils::GetNested(machineData, {"motherboard", "model"});
       result["data"]["ram"] = machineData["ram"];
    }
 
@@ -74,9 +73,9 @@ nlohmann::json Normalizer::NormalizeHardwareConfig(const int machineId, const nl
 
 int Normalizer::FindMatchingMachine(const json& machineData)
 {
-   const std::string cpu = machineData["cpu"].value("name", "");
-   const std::string gpu = machineData["gpu"].value("name", "");
-   const std::string motherboard = machineData["motherboard"].value("model", "");
+   const std::string cpu = machineData.contains("cpu") ? machineData["cpu"].value("name", "") : "";
+   const std::string gpu = machineData.contains("gpu") ? machineData["gpu"].value("name", "") : "";
+   const std::string motherboard = machineData.contains("motherboard") ? machineData["motherboard"].value("model", "") : "";
    const int ram = machineData.value("ram", 0);
 
    const std::string query =
@@ -134,8 +133,8 @@ int Normalizer::FindMatchingHardwareConfig(const int machineId, const nlohmann::
 void Normalizer::SetCreateHardwareConfig(const nlohmann::json& machineData, nlohmann::json& result)
 {
    result["action"] = "create";
-   result["data"]["cpu-frequency"] = machineData["cpu"]["frequency"];
-   result["data"]["gpu-frequency"] = machineData["gpu"]["frequency"];
+   result["data"]["cpu-frequency"] = Utils::GetNested(machineData, {"cpu", "frequency"});
+   result["data"]["gpu-frequency"] = Utils::GetNested(machineData, {"gpu", "frequency"});
    result["data"]["ram-frequency"] = "";
    result["data"]["settings"] = "";
 }

@@ -667,14 +667,96 @@ async function handleImport(event)
     const file = event.target.files[0];
     if (!file) return;
 
-    console.log("Selected file:", file.name);
+    try
+    {
+        const result = await uploadFiles([file]);
+        showImportResultDialog(result);
+    }
+    catch (err)
+    {
+        console.error(err);
+        showImportErrorDialog(err.message || "Failed to import file.");
+    }
+    finally
+    {
+        event.target.value = "";
+    }
+}
 
-    const result = await uploadFiles([file]);
+function showImportResultDialog(result)
+{
+    const fileInfo = result.files && result.files.length > 0 ? result.files[0] : null;
+    if (!fileInfo || fileInfo.format === "unknown")
+    {
+        showImportErrorDialog("The file was not recognized as a supported benchmark file");
+        return;
+    }
 
-    console.log("Import result:", result);
+    const content = getImportResultContent();
+    content.innerHTML = "";
+    content.classList.remove("import-error");
 
-    // optional: reset input so same file can be selected again
-    event.target.value = "";
+    content.appendChild(createImportSummaryRow("File", fileInfo.name || "-"));
+    content.appendChild(createImportSummaryRow("Format", fileInfo.format || "-"));
+    content.appendChild(createImportSummaryRow("Size", fileInfo.size !== undefined ? `${fileInfo.size} bytes` : "-"));
+    content.appendChild(createImportJsonSection("Parsed result", fileInfo.parsedData || {}));
+    content.appendChild(createImportJsonSection("Normalized result", fileInfo.actionData || {}));
+
+    document.getElementById("importResultDialogTitle").textContent = "Import result";
+    document.getElementById("importResultDialog").style.display = "flex";
+}
+
+function showImportErrorDialog(message)
+{
+    const content = getImportResultContent();
+    content.innerHTML = "";
+    content.classList.add("import-error");
+    content.textContent = message;
+
+    document.getElementById("importResultDialogTitle").textContent = "Import result";
+    document.getElementById("importResultDialog").style.display = "flex";
+}
+
+function getImportResultContent()
+{
+    return document.getElementById("importResultDialogContent");
+}
+
+function createImportSummaryRow(label, value)
+{
+    const row = document.createElement("div");
+    row.className = "import-summary-row";
+
+    const labelElement = document.createElement("span");
+    labelElement.textContent = label;
+
+    const valueElement = document.createElement("strong");
+    valueElement.textContent = String(value);
+
+    row.appendChild(labelElement);
+    row.appendChild(valueElement);
+    return row;
+}
+
+function createImportJsonSection(title, data)
+{
+    const section = document.createElement("section");
+    section.className = "import-json-section";
+
+    const heading = document.createElement("h4");
+    heading.textContent = title;
+
+    const pre = document.createElement("pre");
+    pre.textContent = JSON.stringify(data, null, 2);
+
+    section.appendChild(heading);
+    section.appendChild(pre);
+    return section;
+}
+
+function closeImportResultDialog()
+{
+    document.getElementById("importResultDialog").style.display = "none";
 }
 
 async function loadRuns()
@@ -716,6 +798,9 @@ async function uploadFiles(files)
         body: formData
     });
 
+    if (!res.ok)
+        throw new Error(await readErrorMessage(res));
+
     return await res.json();
 }
 
@@ -734,3 +819,4 @@ window.loadRunDropdowns = loadRunDropdowns;
 
 window.openImportDialog = openImportDialog;
 window.handleImport = handleImport;
+window.closeImportResultDialog = closeImportResultDialog;

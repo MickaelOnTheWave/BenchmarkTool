@@ -274,3 +274,50 @@ button:disabled:hover {
     justify-content: flex-end;
     margin-top: 8px;
 }
+
+.import-result-dialog {
+    width: min(900px, 92vw);
+    max-height: 86vh;
+}
+
+#importResultDialogContent {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+    overflow: auto;
+}
+
+.import-summary-row {
+    display: flex;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.import-summary-row span {
+    width: 64px;
+    color: #667085;
+}
+
+.import-json-section h4 {
+    margin: 8px 0 6px;
+    font-size: 14px;
+}
+
+.import-json-section pre {
+    margin: 0;
+    padding: 10px;
+    max-height: 260px;
+    overflow: auto;
+    background: #111827;
+    color: #e5e7eb;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.import-error {
+    color: #bd3636;
+    font-weight: 600;
+    white-space: pre-wrap;
+}

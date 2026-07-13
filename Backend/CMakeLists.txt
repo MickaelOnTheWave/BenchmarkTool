@@ -23,6 +23,7 @@ add_library(Core
     core/AbstractImporter.h
     core/ThreeDMarkImporter.h core/ThreeDMarkImporter.cpp
     core/Normalizer.h core/Normalizer.cpp
+    core/Utils.h core/Utils.cpp
 )
 
 target_include_directories(Core PUBLIC
