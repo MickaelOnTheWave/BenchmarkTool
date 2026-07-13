@@ -779,6 +779,19 @@ const importPlanSections = [
     { planKey: "testconfig",          definitionId: "testConfigs",          parentKey: "testId" }
 ];
 
+// Stashed data from the normalizer, set when the dialog opens and read on submit.
+let importPlanStash = { benchmarkrun: {}, sourceFile: "" };
+
+// NOT NULL fields per entity that must be non-empty when creating.
+const importPlanRequiredFields = {
+    machine:             ["name"],
+    hardwareconfig:      ["name"],
+    softwareenvironment: ["name", "os", "driverFamily"],
+    softwareconfig:      ["name", "driverVersion"],
+    test:                ["name"],
+    testconfig:          ["name"]
+};
+
 function getDefinitionById(id)
 {
     return detailsTableDefinitions.find(d => d.id === id);
@@ -794,6 +807,13 @@ async function showImportPlanDialog(result)
     }
 
     const actionData = fileInfo.actionData || {};
+
+    // Stash data needed at submit time.
+    importPlanStash = {
+        benchmarkrun: actionData.benchmarkrun || {},
+        sourceFile: fileInfo.name || ""
+    };
+
     const body = document.getElementById("importPlanBody");
     const error = document.getElementById("importPlanError");
 
@@ -809,6 +829,10 @@ async function showImportPlanDialog(result)
         const items = itemsBySection[section.definitionId] || [];
         body.appendChild(createImportPlanRow(section, definition, subPlan, items));
     }
+
+    const confirmBtn = document.getElementById("importPlanConfirmBtn");
+    confirmBtn.disabled = false;
+    confirmBtn.onclick = submitImportPlan;
 
     document.getElementById("importPlanDialogTitle").textContent = `Import - ${fileInfo.name || "file"}`;
     document.getElementById("importPlanDialog").style.display = "flex";
@@ -893,9 +917,10 @@ function createImportPlanRow(section, definition, subPlan, items)
     fieldsWrap.className = "import-plan-fields";
 
     const visibleFields = definition.fields.filter(f => f.key !== section.parentKey);
+    const required = importPlanRequiredFields[section.planKey] || [];
     for (const field of visibleFields)
     {
-        fieldsWrap.appendChild(createImportPlanField(field));
+        fieldsWrap.appendChild(createImportPlanField(field, required.includes(field.key)));
     }
 
     // ---- Wiring ----------------------------------------------------------
@@ -937,13 +962,13 @@ function createImportPlanRow(section, definition, subPlan, items)
     return row;
 }
 
-function createImportPlanField(field)
+function createImportPlanField(field, isRequired = false)
 {
     const wrap = document.createElement("label");
     wrap.className = "import-plan-field";
 
     const label = document.createElement("span");
-    label.textContent = field.label;
+    label.textContent = isRequired ? `${field.label} *` : field.label;
     wrap.appendChild(label);
 
     let input;
@@ -991,6 +1016,126 @@ function setImportPlanFieldsReadOnly(fieldsWrap, readOnly)
     {
         input.readOnly = readOnly;
         input.classList.toggle("readonly", readOnly);
+    }
+}
+
+function validateImportPlan()
+{
+    const errors = [];
+    const rows = document.querySelectorAll("#importPlanBody .import-plan-row");
+
+    for (const row of rows)
+    {
+        const planKey = row.dataset.planKey;
+        const action = row.querySelector(`input[name="plan-action-${planKey}"]:checked`);
+        if (!action || action.value !== "create")
+            continue;
+
+        const required = importPlanRequiredFields[planKey] || [];
+        const fieldsWrap = row.querySelector(".import-plan-fields");
+
+        for (const fieldKey of required)
+        {
+            const input = fieldsWrap.querySelector(`[data-field-key="${fieldKey}"]`);
+            if (!input || !input.value.trim())
+            {
+                const section = importPlanSections.find(s => s.planKey === planKey);
+                const def = getDefinitionById(section.definitionId);
+                const fieldDef = def.fields.find(f => f.key === fieldKey);
+                const label = fieldDef ? fieldDef.label : fieldKey;
+                errors.push(`${def.title}: ${label} is required`);
+            }
+        }
+    }
+
+    return errors;
+}
+
+function buildImportPlanPayload()
+{
+    const payload = {};
+    const rows = document.querySelectorAll("#importPlanBody .import-plan-row");
+
+    for (const row of rows)
+    {
+        const planKey = row.dataset.planKey;
+        const action = row.querySelector(`input[name="plan-action-${planKey}"]:checked`);
+
+        if (action && action.value === "reuse")
+        {
+            const combo = row.querySelector(".import-plan-combo");
+            payload[planKey] = { action: "reuse", id: Number(combo.value) };
+        }
+        else
+        {
+            const fieldsWrap = row.querySelector(".import-plan-fields");
+            const data = {};
+
+            for (const input of importPlanFieldInputs(fieldsWrap))
+            {
+                const key = input.dataset.fieldKey;
+                const type = input.dataset.fieldType;
+                data[key] = type === "number" ? Number(input.value || 0) : input.value;
+            }
+
+            payload[planKey] = { action: "create", data };
+        }
+    }
+
+    // Attach benchmark run data from stash.
+    const run = importPlanStash.benchmarkrun;
+    payload.benchmarkrun = {
+        timestamp: run.data ? run.data.timestamp || "" : "",
+        result: run.data ? run.data.result || {} : {},
+        origin: {
+            externalId: run.data ? (run.data.origin || {}).externalId || "" : "",
+            sourceFile: importPlanStash.sourceFile
+        }
+    };
+
+    return payload;
+}
+
+async function submitImportPlan()
+{
+    const errorEl = document.getElementById("importPlanError");
+    const confirmBtn = document.getElementById("importPlanConfirmBtn");
+    errorEl.textContent = "";
+
+    // Client-side validation.
+    const validationErrors = validateImportPlan();
+    if (validationErrors.length > 0)
+    {
+        errorEl.textContent = validationErrors.join("\n");
+        return;
+    }
+
+    confirmBtn.disabled = true;
+
+    try
+    {
+        const payload = buildImportPlanPayload();
+        const response = await fetch("/api/import/execute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok)
+        {
+            errorEl.textContent = await readErrorMessage(response);
+            confirmBtn.disabled = false;
+            return;
+        }
+
+        closeImportPlanDialog();
+        await loadRuns();
+    }
+    catch (err)
+    {
+        console.error(err);
+        errorEl.textContent = "Failed to execute import plan.";
+        confirmBtn.disabled = false;
     }
 }
 
@@ -1061,3 +1206,4 @@ window.openImportDialog = openImportDialog;
 window.handleImport = handleImport;
 window.closeImportResultDialog = closeImportResultDialog;
 window.closeImportPlanDialog = closeImportPlanDialog;
+window.submitImportPlan = submitImportPlan;

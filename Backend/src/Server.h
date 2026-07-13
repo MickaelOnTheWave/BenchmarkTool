@@ -62,6 +62,7 @@ private:
    void ResetDatabaseRequest(const httplib::Request& req, httplib::Response& res);
 
    void ImportFiles(const httplib::Request& req, httplib::Response& res);
+   void ExecuteImportPlan(const httplib::Request& req, httplib::Response& res);
 
    // Helpers
    void ListEntitiesHttp(Database& db, Server::EntityDescriptor& entity, httplib::Response& res);

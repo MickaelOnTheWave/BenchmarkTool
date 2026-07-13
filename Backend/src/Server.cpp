@@ -214,6 +214,11 @@ void Server::RegisterRoutes()
       ImportFiles(req, res);
    });
 
+   server.Post("/api/import/execute", [this](const httplib::Request& req, httplib::Response& res)
+   {
+      ExecuteImportPlan(req, res);
+   });
+
    server.Post("/api/testing/reset", [this](const httplib::Request& req, httplib::Response& res)
    {
       ResetDatabaseRequest(req, res);
@@ -862,6 +867,272 @@ void Server::ImportFiles(const httplib::Request& req, httplib::Response& res)
    std::cout << "Result : " << std::endl;
    std::cout << response.dump(2) << std::endl;
 
+   res.set_content(response.dump(), "application/json");
+}
+
+void Server::ExecuteImportPlan(const httplib::Request& req, httplib::Response& res)
+{
+   json input = json::parse(req.body, nullptr, false);
+   if (input.is_discarded())
+   {
+      SetJsonError(res, 400, "Invalid JSON");
+      return;
+   }
+
+   // --- Begin transaction -------------------------------------------------
+   char* err = nullptr;
+   if (sqlite3_exec(db.GetHandle(), "BEGIN TRANSACTION;", nullptr, nullptr, &err) != SQLITE_OK)
+   {
+      std::string msg = err ? err : "Failed to start transaction";
+      sqlite3_free(err);
+      SetJsonError(res, 500, msg);
+      return;
+   }
+
+   // Helper: resolve one entity from its sub-plan. Returns the id (existing
+   // or newly created), or 0 on failure (with the error response already set).
+   auto resolveEntity = [&](const std::string& planKey,
+                            const EntityDescriptor& descriptor,
+                            const std::string& parentFkField = "",
+                            int parentId = 0) -> int
+   {
+      const json subPlan = input.value(planKey, json::object());
+      const std::string action = subPlan.value("action", "");
+
+      if (action == "reuse")
+      {
+         const int id = subPlan.value("id", 0);
+         if (id <= 0)
+         {
+            sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+            SetJsonError(res, 400, planKey + ": reuse requires a valid id");
+         }
+         return id;
+      }
+
+      if (action != "create")
+      {
+         sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+         SetJsonError(res, 400, planKey + ": action must be 'reuse' or 'create'");
+         return 0;
+      }
+
+      // Build the data to insert: start from the plan's data, inject parent FK.
+      json data = subPlan.value("data", json::object());
+      if (!parentFkField.empty() && parentId > 0)
+         data[parentFkField] = parentId;
+
+      auto insertErr = InsertEntity(db, descriptor, data);
+      if (insertErr.has_value())
+      {
+         sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+         SetJsonError(res, 500, planKey + ": " + insertErr.value());
+         return 0;
+      }
+
+      return db.GetLastInsertId();
+   };
+
+   // --- 1. Machine --------------------------------------------------------
+   EntityDescriptor machineDesc;
+   machineDesc.table = "Machine";
+   machineDesc.insertFields = {"Name", "Cpu", "Gpu", "RamGb", "Motherboard"};
+   machineDesc.insertBinder = [](sqlite3_stmt* stmt, const json& j)
+   {
+      sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
+      sqlite3_bind_text(stmt, 2, j.value("cpu", "").c_str(), -1, SQLITE_TRANSIENT);
+      sqlite3_bind_text(stmt, 3, j.value("gpu", "").c_str(), -1, SQLITE_TRANSIENT);
+      sqlite3_bind_int(stmt, 4, j.value("ramGb", 0));
+      sqlite3_bind_text(stmt, 5, j.value("motherboard", "").c_str(), -1, SQLITE_TRANSIENT);
+   };
+
+   const int machineId = resolveEntity("machine", machineDesc);
+   if (machineId <= 0) return;
+
+   // --- 2. Hardware Configuration -----------------------------------------
+   EntityDescriptor hwDesc;
+   hwDesc.table = "HardwareConfiguration";
+   hwDesc.insertFields = {"Name", "MachineId", "CpuFreqGhz", "GpuFreqMhz", "RamFreqMhz", "Settings"};
+   hwDesc.insertBinder = [](sqlite3_stmt* stmt, const json& j)
+   {
+      sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
+      sqlite3_bind_int(stmt, 2, j.value("machineId", 0));
+      sqlite3_bind_double(stmt, 3, j.value("cpuFreqGhz", 0.0));
+      sqlite3_bind_double(stmt, 4, j.value("gpuFreqMhz", 0.0));
+      sqlite3_bind_double(stmt, 5, j.value("ramFreqMhz", 0.0));
+      sqlite3_bind_text(stmt, 6, j.value("settings", "").c_str(), -1, SQLITE_TRANSIENT);
+   };
+
+   const int hwConfigId = resolveEntity("hardwareconfig", hwDesc, "machineId", machineId);
+   if (hwConfigId <= 0) return;
+
+   // --- 3. Software Environment -------------------------------------------
+   EntityDescriptor envDesc;
+   envDesc.table = "SoftwareEnvironment";
+   envDesc.insertFields = {"Name", "Os", "OsVersion", "DriverFamily"};
+   envDesc.insertBinder = [](sqlite3_stmt* stmt, const json& j)
+   {
+      sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
+      sqlite3_bind_text(stmt, 2, j.value("os", "").c_str(), -1, SQLITE_TRANSIENT);
+      sqlite3_bind_text(stmt, 3, j.value("osVersion", "").c_str(), -1, SQLITE_TRANSIENT);
+      sqlite3_bind_text(stmt, 4, j.value("driverFamily", "").c_str(), -1, SQLITE_TRANSIENT);
+   };
+
+   const int envId = resolveEntity("softwareenvironment", envDesc);
+   if (envId <= 0) return;
+
+   // --- 4. Software Configuration -----------------------------------------
+   EntityDescriptor swDesc;
+   swDesc.table = "SoftwareConfiguration";
+   swDesc.insertFields = {"Name", "SoftwareEnvironmentId", "DriverVersion", "Mode", "Settings"};
+   swDesc.insertBinder = [](sqlite3_stmt* stmt, const json& j)
+   {
+      sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
+      sqlite3_bind_int(stmt, 2, j.value("softwareEnvironmentId", 0));
+      sqlite3_bind_text(stmt, 3, j.value("driverVersion", "").c_str(), -1, SQLITE_TRANSIENT);
+      sqlite3_bind_text(stmt, 4, j.value("mode", "").c_str(), -1, SQLITE_TRANSIENT);
+      sqlite3_bind_text(stmt, 5, j.value("settings", "{}").c_str(), -1, SQLITE_TRANSIENT);
+   };
+
+   const int swConfigId = resolveEntity("softwareconfig", swDesc, "softwareEnvironmentId", envId);
+   if (swConfigId <= 0) return;
+
+   // --- 5. Test -----------------------------------------------------------
+   EntityDescriptor testDesc;
+   testDesc.table = "Test";
+   testDesc.insertFields = {"Name", "Description", "IconPath"};
+   testDesc.insertBinder = [](sqlite3_stmt* stmt, const json& j)
+   {
+      sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
+      sqlite3_bind_text(stmt, 2, j.value("description", "").c_str(), -1, SQLITE_TRANSIENT);
+      sqlite3_bind_text(stmt, 3, j.value("iconPath", "").c_str(), -1, SQLITE_TRANSIENT);
+   };
+
+   const int testId = resolveEntity("test", testDesc);
+   if (testId <= 0) return;
+
+   // --- 6. Test Configuration ---------------------------------------------
+   EntityDescriptor testCfgDesc;
+   testCfgDesc.table = "TestConfiguration";
+   testCfgDesc.insertFields = {"Name", "TestId", "Settings"};
+   testCfgDesc.insertBinder = [](sqlite3_stmt* stmt, const json& j)
+   {
+      sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
+      sqlite3_bind_int(stmt, 2, j.value("testId", 0));
+      sqlite3_bind_text(stmt, 3, j.value("settings", "{}").c_str(), -1, SQLITE_TRANSIENT);
+   };
+
+   const int testCfgId = resolveEntity("testconfig", testCfgDesc, "testId", testId);
+   if (testCfgId <= 0) return;
+
+   // --- 7. Benchmark Run --------------------------------------------------
+   const json runData = input.value("benchmarkrun", json::object());
+
+   sqlite3_stmt* stmt = nullptr;
+   const std::string insertRunQuery =
+      "INSERT INTO BenchmarkRun (MachineId, HardwareConfigurationId, SoftwareEnvironmentId, "
+      "SoftwareConfigurationId, TestId, TestConfigurationId, Timestamp) "
+      "VALUES (?, ?, ?, ?, ?, ?, ?);";
+
+   if (sqlite3_prepare_v2(db.GetHandle(), insertRunQuery.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+   {
+      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+      SetJsonError(res, 500, std::string("BenchmarkRun: ") + sqlite3_errmsg(db.GetHandle()));
+      return;
+   }
+
+   sqlite3_bind_int(stmt, 1, machineId);
+   sqlite3_bind_int(stmt, 2, hwConfigId);
+   sqlite3_bind_int(stmt, 3, envId);
+   sqlite3_bind_int(stmt, 4, swConfigId);
+   sqlite3_bind_int(stmt, 5, testId);
+   sqlite3_bind_int(stmt, 6, testCfgId);
+   sqlite3_bind_text(stmt, 7, runData.value("timestamp", "").c_str(), -1, SQLITE_TRANSIENT);
+
+   if (sqlite3_step(stmt) != SQLITE_DONE)
+   {
+      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+      std::string errMsg = sqlite3_errmsg(db.GetHandle());
+      sqlite3_finalize(stmt);
+      SetJsonError(res, 500, "BenchmarkRun: " + errMsg);
+      return;
+   }
+
+   sqlite3_finalize(stmt);
+   const int runId = db.GetLastInsertId();
+
+   // --- 8. Result ---------------------------------------------------------
+   const json resultData = runData.value("result", json::object());
+
+   const std::string insertResultQuery =
+      "INSERT INTO Result (RunId, AvgFps, MinFps, MaxFps, Score) VALUES (?, ?, ?, ?, ?);";
+
+   if (sqlite3_prepare_v2(db.GetHandle(), insertResultQuery.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+   {
+      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+      SetJsonError(res, 500, std::string("Result: ") + sqlite3_errmsg(db.GetHandle()));
+      return;
+   }
+
+   sqlite3_bind_int(stmt, 1, runId);
+   sqlite3_bind_double(stmt, 2, resultData.value("avgFps", 0.0));
+   sqlite3_bind_double(stmt, 3, resultData.value("minFps", 0.0));
+   sqlite3_bind_double(stmt, 4, resultData.value("maxFps", 0.0));
+   sqlite3_bind_double(stmt, 5, resultData.value("score", 0.0));
+
+   if (sqlite3_step(stmt) != SQLITE_DONE)
+   {
+      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+      std::string errMsg = sqlite3_errmsg(db.GetHandle());
+      sqlite3_finalize(stmt);
+      SetJsonError(res, 500, "Result: " + errMsg);
+      return;
+   }
+
+   sqlite3_finalize(stmt);
+
+   // --- 9. Origin ---------------------------------------------------------
+   const json originData = runData.value("origin", json::object());
+
+   const std::string insertOriginQuery =
+      "INSERT INTO Origin (RunId, OriginType, ExternalId, SourceFile) VALUES (?, ?, ?, ?);";
+
+   if (sqlite3_prepare_v2(db.GetHandle(), insertOriginQuery.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+   {
+      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+      SetJsonError(res, 500, std::string("Origin: ") + sqlite3_errmsg(db.GetHandle()));
+      return;
+   }
+
+   sqlite3_bind_int(stmt, 1, runId);
+   sqlite3_bind_text(stmt, 2, "imported", -1, SQLITE_STATIC);
+   sqlite3_bind_text(stmt, 3, originData.value("externalId", "").c_str(), -1, SQLITE_TRANSIENT);
+   sqlite3_bind_text(stmt, 4, originData.value("sourceFile", "").c_str(), -1, SQLITE_TRANSIENT);
+
+   if (sqlite3_step(stmt) != SQLITE_DONE)
+   {
+      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+      std::string errMsg = sqlite3_errmsg(db.GetHandle());
+      sqlite3_finalize(stmt);
+      SetJsonError(res, 500, "Origin: " + errMsg);
+      return;
+   }
+
+   sqlite3_finalize(stmt);
+
+   // --- Commit ------------------------------------------------------------
+   if (sqlite3_exec(db.GetHandle(), "COMMIT;", nullptr, nullptr, &err) != SQLITE_OK)
+   {
+      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+      std::string msg = err ? err : "Failed to commit";
+      sqlite3_free(err);
+      SetJsonError(res, 500, msg);
+      return;
+   }
+
+   json response;
+   response["status"] = "ok";
+   response["runId"] = runId;
    res.set_content(response.dump(), "application/json");
 }
 
