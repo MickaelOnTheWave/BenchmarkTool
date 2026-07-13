@@ -272,7 +272,7 @@ void ThreeDMarkImporter::ParseSystemInfoXml(json& result, const ByteBuffer& data
    auto systemInfoNode = FindFirstElementByName(&doc, "System_Info");
    if (systemInfoNode)
    {
-      result["origin"]["machine-guid"] = GetNodeValue(systemInfoNode, "Guid");
+      result["machine"]["origin"]["machine-guid"] = GetNodeValue(systemInfoNode, "Guid");
    }
 }
 
