@@ -72,6 +72,12 @@ namespace
 
       return elem->GetText();
    };
+
+   std::string GetNodeValueByNameProperty(tinyxml2::XMLNode* propertyListNode, const std::string& targetName)
+   {
+       auto targetPropertyNode = FindChildBySubtag(propertyListNode, "name", targetName.c_str());
+       return GetNodeValue(targetPropertyNode, "value");
+   }
 }
 
 void FillMachineInformation(tinyxml2::XMLDocument& doc, json& result)
@@ -168,11 +174,11 @@ json ThreeDMarkImporter::Import(const ByteBuffer& fileData)
 
    const ByteBuffer testXml = archive.ExtractFile("Arielle.xml");
    if (!testXml.empty())
-      result["test"] = ParseTestInfoXml(testXml);
+      ParseTestInfoXml(result, testXml);
 
    const ByteBuffer resultXml = archive.ExtractFile("Result.xml");
    if (!resultXml.empty())
-      result["benchmarkRun"] = ParseResultXml(resultXml);
+      ParseResultXml(result, resultXml);
 
    const ByteBuffer siXml = archive.ExtractFile("SI.xml");
    if (!siXml.empty())
@@ -181,31 +187,30 @@ json ThreeDMarkImporter::Import(const ByteBuffer& fileData)
    return result;
 }
 
-json ThreeDMarkImporter::ParseResultXml(const ByteBuffer& data)
+void ThreeDMarkImporter::ParseResultXml(json& result, const ByteBuffer& data)
 {
-   json result;
    tinyxml2::XMLDocument doc;
 
    const std::string xml = ByteBufferToString(data);
 
    if (doc.Parse(xml.c_str(), xml.size()) != tinyxml2::XML_SUCCESS)
    {
-      result["error"] = "Failed to parse Result.xml";
-      return result;
+      result["benchmarkRun"]["error"] = "Failed to parse Result.xml";
+       return;
    }
 
    auto* root = doc.FirstChildElement("benchmark");
    if (!root)
    {
-      result["error"] = "Missing <benchmark> root";
-      return result;
+      result["benchmarkRun"]["error"] = "Missing <benchmark> root";
+       return;
    }
 
    auto* results = root->FirstChildElement("results");
    if (!results)
    {
-      result["error"] = "Missing <results>";
-      return result;
+      result["benchmarkRun"]["error"] = "Missing <results>";
+      return;
    }
 
    const tinyxml2::XMLElement* bestResult = nullptr;
@@ -223,14 +228,14 @@ json ThreeDMarkImporter::ParseResultXml(const ByteBuffer& data)
 
    if (!bestResult)
    {
-      result["error"] = "No aggregate result (passIndex -1) found";
-      return result;
+      result["benchmarkRun"]["error"] = "No aggregate result (passIndex -1) found";
+       return;
    }
 
    // benchmarkRunId
    const auto* runIdElem = bestResult->FirstChildElement("benchmarkRunId");
    if (runIdElem && runIdElem->GetText())
-      result["origin"]["runExternalId"] = runIdElem->GetText();
+      result["benchmarkRun"]["origin"]["runExternalId"] = runIdElem->GetText();
 
    // score (first element ending with "Score")
    int score = 0;
@@ -250,8 +255,7 @@ json ThreeDMarkImporter::ParseResultXml(const ByteBuffer& data)
       }
    }
 
-   result["result"]["score"] = score;
-   return result;
+   result["benchmarkRun"]["result"]["score"] = score;
 }
 
 void ThreeDMarkImporter::ParseSystemInfoXml(json& result, const ByteBuffer& data)
@@ -272,15 +276,20 @@ void ThreeDMarkImporter::ParseSystemInfoXml(json& result, const ByteBuffer& data
    }
 }
 
-nlohmann::json ThreeDMarkImporter::ParseTestInfoXml(const ByteBuffer& data)
+void ThreeDMarkImporter::ParseTestInfoXml(json& result, const ByteBuffer& data)
 {
-   json result;
-
    tinyxml2::XMLDocument doc;
 
    const std::string xml(reinterpret_cast<const char*>(data.data()),data.size());
    if (doc.Parse(xml.c_str()) != tinyxml2::XML_SUCCESS)
-      return result;
+      return;
+
+   auto appInfoNode = FindFirstElementByName(&doc, "application_info");
+   if (appInfoNode)
+   {
+       auto startTimeNode = GetNodeValueByNameProperty(appInfoNode, "benchmark_start_time");
+       result["benchmarkRun"]["time"] = startTimeNode;
+   }
 
    auto testInfoNode = FindFirstElementByName(&doc, "test_info");
    if (testInfoNode)
@@ -290,21 +299,19 @@ nlohmann::json ThreeDMarkImporter::ParseTestInfoXml(const ByteBuffer& data)
       {
          std::string rawTestName = testNode->Attribute("name");
          rawTestName.pop_back();
-         result["name"] = rawTestName;
+         result["test"]["name"] = rawTestName;
       }
    }
 
    auto settingsNode = FindDirectChildByName(doc.RootElement(), "settings");
    auto FindSettingValue = [settingsNode](const char* settingName)
    {
-      auto settingNode = FindChildBySubtag(settingsNode, "name", settingName);
-      return GetNodeValue(settingNode, "value");
+       return GetNodeValueByNameProperty(settingsNode, settingName);
    };
 
-   result["usedGpu"] = FindSettingValue("adapter_name");
-   result["textureFilterMode"] = FindSettingValue("texture_filtering_mode");
-   result["resolution"] = FindSettingValue("rendering_resolution");
-   return result;
+   result["test"]["usedGpu"] = FindSettingValue("adapter_name");
+   result["test"]["textureFilterMode"] = FindSettingValue("texture_filtering_mode");
+   result["test"]["resolution"] = FindSettingValue("rendering_resolution");
 }
 
 std::string ThreeDMarkImporter::ByteBufferToString(const ByteBuffer& data)

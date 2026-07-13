@@ -9,8 +9,8 @@ public:
    nlohmann::json Import(const ByteBuffer& fileData) override;
 
 private:
-   nlohmann::json ParseResultXml(const ByteBuffer& data);
-   nlohmann::json ParseTestInfoXml(const ByteBuffer& data);
+   void ParseResultXml(nlohmann::json& result, const ByteBuffer& data);
+   void ParseTestInfoXml(nlohmann::json& result, const ByteBuffer& data);
    void ParseSystemInfoXml(nlohmann::json& result, const ByteBuffer& data);
 
    static std::string ByteBufferToString(const ByteBuffer& data);
