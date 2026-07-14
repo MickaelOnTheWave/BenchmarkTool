@@ -11,6 +11,7 @@ add_executable(UnitTests
 target_link_libraries(UnitTests PRIVATE
     Core
     Catch2::Catch2WithMain
+    SQLite::SQLite3
     nlohmann_json
 )
 

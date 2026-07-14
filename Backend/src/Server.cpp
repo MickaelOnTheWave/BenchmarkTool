@@ -196,6 +196,11 @@ void Server::RegisterRoutes()
       DeleteTestConfigRequest(req, res);
    });
 
+   server.Get("/api/list-origins", [this](const httplib::Request& req, httplib::Response& res)
+   {
+      ListOriginsRequest(req, res);
+   });
+
    server.Get("/api/run/list", [this](const httplib::Request& req, httplib::Response& res)
    {
       ListBenchmarkRunsRequest(req, res);
@@ -296,11 +301,14 @@ void Server::ListHardwareConfigsRequest(const httplib::Request&, httplib::Respon
       jsonObj["gpuFreqMhz"] = sqlite3_column_double(sqlStatement, 4);
       jsonObj["ramFreqMhz"] = sqlite3_column_double(sqlStatement, 5);
 
-      const char* settingsText =
+       const char* settingsText =
          reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 6));
 
       if (settingsText)
-         jsonObj["settings"] = json::parse(settingsText, nullptr, false);
+      {
+         json parsed = json::parse(settingsText, nullptr, false);
+         jsonObj["settings"] = parsed.is_discarded() ? json::object() : parsed;
+      }
       else
          jsonObj["settings"] = json::object();
    };
@@ -516,6 +524,32 @@ void Server::CreateTestConfigRequest(const httplib::Request& req, httplib::Respo
 void Server::DeleteTestConfigRequest(const httplib::Request& req, httplib::Response& res)
 {
    DeleteEntityHttp(req, res, "TestConfiguration");
+}
+
+void Server::ListOriginsRequest(const httplib::Request&, httplib::Response& res)
+{
+   EntityDescriptor entity;
+
+   entity.rootField = "origins";
+   entity.table = "Origin";
+   // Alias OriginType as the Name column (column 1) for the generic ListEntities mapper.
+   entity.fields = "Id, OriginType, RunId, ExternalId, SourceFile, CreatedAt";
+
+   entity.selectMapper = [](sqlite3_stmt* stmt, json& obj)
+   {
+      obj["runId"] = sqlite3_column_int(stmt, 2);
+
+      const char* externalId = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+      obj["externalId"] = externalId ? externalId : "";
+
+      const char* sourceFile = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+      obj["sourceFile"] = sourceFile ? sourceFile : "";
+
+      const char* createdAt = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
+      obj["createdAt"] = createdAt ? createdAt : "";
+   };
+
+   ListEntitiesHttp(db, entity, res);
 }
 
 void Server::ListBenchmarkRunsRequest(const httplib::Request& req, httplib::Response& res)

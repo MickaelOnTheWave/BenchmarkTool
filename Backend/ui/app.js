@@ -172,6 +172,20 @@ const detailsTableDefinitions = [
             },
             { key: "settings", label: "Settings", type: "textarea", defaultValue: "{}" }
         ]
+    },
+    {
+        id: "origins",
+        title: "Origins",
+        endpoint: "/api/list-origins",
+        rootField: "origins",
+        columns: [
+            { key: "id", label: "Id" },
+            { key: "name", label: "Type" },
+            { key: "runId", label: "RunId" },
+            { key: "externalId", label: "ExternalId" },
+            { key: "sourceFile", label: "SourceFile" },
+            { key: "createdAt", label: "CreatedAt" }
+        ]
     }
 ];
 
@@ -201,20 +215,27 @@ function createDetailsTable(definition)
     const actions = document.createElement("div");
     actions.className = "details-table-actions";
 
-    const addButton = document.createElement("button");
-    addButton.type = "button";
-    addButton.textContent = "Add";
-    addButton.onclick = () => openDetailsAddDialog(definition);
+    if (definition.createEndpoint)
+    {
+        const addButton = document.createElement("button");
+        addButton.type = "button";
+        addButton.textContent = "Add";
+        addButton.onclick = () => openDetailsAddDialog(definition);
+        actions.appendChild(addButton);
+    }
 
-    const removeButton = document.createElement("button");
-    removeButton.type = "button";
-    removeButton.textContent = "Remove";
-    removeButton.className = "danger-button";
-    removeButton.disabled = true;
-    removeButton.onclick = () => removeDetailsEntity(definition);
+    let removeButton = null;
+    if (definition.deleteEndpoint)
+    {
+        removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.textContent = "Remove";
+        removeButton.className = "danger-button";
+        removeButton.disabled = true;
+        removeButton.onclick = () => removeDetailsEntity(definition);
+        actions.appendChild(removeButton);
+    }
 
-    actions.appendChild(addButton);
-    actions.appendChild(removeButton);
     header.appendChild(title);
     header.appendChild(actions);
 
@@ -259,7 +280,7 @@ async function refreshDetailsTable(definition)
     const status = document.getElementById(`${definition.id}Status`);
 
     tbody.innerHTML = "";
-    removeButton.disabled = true;
+    if (removeButton) removeButton.disabled = true;
     panel.dataset.selectedId = "";
     status.textContent = "Loading...";
 
@@ -306,7 +327,7 @@ function selectDetailsRow(panel, rowElement, selectedId, removeButton)
 
     rowElement.classList.add("selected-row");
     panel.dataset.selectedId = selectedId;
-    removeButton.disabled = false;
+    if (removeButton) removeButton.disabled = false;
 }
 
 async function openDetailsAddDialog(definition)
@@ -1189,6 +1210,31 @@ async function uploadFiles(files)
     return await res.json();
 }
 
+async function resetDatabase()
+{
+    if (!confirm("Are you sure you want to clear the entire database? This cannot be undone."))
+        return;
+
+    try
+    {
+        const response = await fetch("/api/testing/reset?confirm=yes", { method: "POST" });
+
+        if (!response.ok)
+        {
+            alert(await readErrorMessage(response));
+            return;
+        }
+
+        alert("Database cleared.");
+        setView("settings");
+    }
+    catch (err)
+    {
+        console.error(err);
+        alert("Failed to reset database.");
+    }
+}
+
 window.onload = () => {
     setView('home');
 };
@@ -1207,3 +1253,4 @@ window.handleImport = handleImport;
 window.closeImportResultDialog = closeImportResultDialog;
 window.closeImportPlanDialog = closeImportPlanDialog;
 window.submitImportPlan = submitImportPlan;
+window.resetDatabase = resetDatabase;
