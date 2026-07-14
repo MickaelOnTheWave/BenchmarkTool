@@ -24,6 +24,8 @@ add_library(Core
     core/ThreeDMarkImporter.h core/ThreeDMarkImporter.cpp
     core/Normalizer.h core/Normalizer.cpp
     core/Utils.h core/Utils.cpp
+    core/LinuxSystemInfo.h core/LinuxSystemInfo.cpp
+    core/ISystemInfo.h
 )
 
 target_include_directories(Core PUBLIC
@@ -37,8 +39,10 @@ target_link_libraries(Core PUBLIC
     tinyxml2
 )
 
-add_executable(Backend src/main.cpp
-   src/Server.h src/Server.cpp)
+add_executable(Backend
+   src/main.cpp
+   src/Server.h src/Server.cpp
+)
 
 target_link_libraries(Backend PRIVATE
     Core
@@ -49,7 +53,13 @@ target_link_libraries(Backend PRIVATE
 )
 target_include_directories(Backend PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../web)
 
-set(ASSET_FILES ui/index.html ui/style.css ui/app.js schema/schema.sql)
+set(ASSET_FILES
+    ui/index.html
+    ui/style.css
+    ui/app.js
+    schema/schema.sql
+)
+
 set(RUNTIME_DIR ${CMAKE_BINARY_DIR}/Backend)
 add_custom_target(AssetFiles
    COMMAND ${CMAKE_COMMAND} -E copy_directory
