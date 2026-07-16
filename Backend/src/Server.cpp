@@ -6,6 +6,7 @@
 #include "EntityValidators.h"
 #include "FileFormatDetector.h"
 #include "Normalizer.h"
+#include "SystemInfoRequest.h"
 #include "ThreeDMarkImporter.h"
 
 using json = nlohmann::json;
@@ -116,6 +117,12 @@ void Server::RegisterRoutes()
    server.Get("/api/db-status", [this](const httplib::Request& req, httplib::Response& res)
    {
       DbStatusRequest(req, res);
+   });
+
+   server.Get("/api/get-local-system-info", [this](const httplib::Request& req, httplib::Response& res)
+   {
+      const json j = SystemInfoRequest::CreateJsonResponse();
+      res.set_content(j.dump(3), "application/json");
    });
 
    server.Get("/api/list-machines", [this](const httplib::Request& req, httplib::Response& res)

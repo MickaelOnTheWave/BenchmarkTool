@@ -42,6 +42,7 @@ target_link_libraries(Core PUBLIC
 add_executable(Backend
    src/main.cpp
    src/Server.h src/Server.cpp
+   src/SystemInfoRequest.h src/SystemInfoRequest.cpp
 )
 
 target_link_libraries(Backend PRIVATE
