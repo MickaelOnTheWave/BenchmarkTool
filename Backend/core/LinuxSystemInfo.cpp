@@ -4,8 +4,12 @@
 #include <cstring>
 #include <sys/sysinfo.h>
 
+#include <algorithm>
 #include <fstream>
 #include <sstream>
+
+#include "stringtools.h"
+#include "tools.h"
 
 using namespace std;
 
@@ -39,9 +43,31 @@ CpuInfo LinuxSystemInfo::GetCpu()
    return info;
 }
 
-ProcessingUnitInfo LinuxSystemInfo::GetGpu()
+GpuInfo LinuxSystemInfo::GetGpu()
 {
-   return ProcessingUnitInfo();
+   GpuInfo info;
+
+   const vector<string> glxInfoData = GetGlxInfoOutput();
+   info.name = FindGpuName(glxInfoData);
+   info.vendor = FindGpuVendor(glxInfoData);
+   info.vram.quantityMb = FindVramQuantity(glxInfoData);
+
+   info.minFrequencyMhz = -1;
+   if (info.vendor == "NVIDIA Corporation")
+   {
+      const vector<int> nvidiaSmiData = GetNvidiaSmiValues();
+      info.maxFrequencyMhz = nvidiaSmiData[0];
+      info.currentFrequencyMhz = nvidiaSmiData[1];
+      info.vram.frequencyMhz = nvidiaSmiData[2];
+   }
+   else
+   {
+      info.maxFrequencyMhz = -1;
+      info.currentFrequencyMhz = -1;
+      info.vram.frequencyMhz = -1;
+   }
+
+   return info;
 }
 
 MemoryInfo LinuxSystemInfo::GetRam()
@@ -124,4 +150,87 @@ string LinuxSystemInfo::GetInfoFileContent(const std::string& file) const
       return stream.str();
    }
    return "";
+}
+
+std::vector<std::string> LinuxSystemInfo::GetGlxInfoOutput() const
+{
+   vector<string> lines;
+   std::wstring output;
+   const int returnCode = Tools::RunExternalCommandToBuffer(L"glxinfo", output);
+   if (returnCode == 0)
+      StringTools::Tokenize(StringTools::UnicodeToUtf8(output), '\n', lines);
+   return lines;
+}
+
+std::string LinuxSystemInfo::FindGpuVendor(const std::vector<std::string>& glxInfoData) const
+{
+   static const string rendererTag = "OpenGL vendor string: ";
+   for (const auto& line : glxInfoData)
+   {
+      const size_t pos = line.find(rendererTag);
+      if (pos == 0)
+         return line.substr(rendererTag.size());
+   }
+   return "Unknown";
+}
+
+std::string LinuxSystemInfo::FindGpuName(const std::vector<std::string>& glxInfoData) const
+{
+   static const string rendererTag = "OpenGL renderer string: ";
+   for (const auto& line : glxInfoData)
+   {
+      const size_t pos = line.find(rendererTag);
+      if (pos == 0)
+      {
+         const string baseName = line.substr(rendererTag.size());
+         vector<string> nameAndDetails;
+         StringTools::Tokenize(baseName, '/', nameAndDetails);
+         return nameAndDetails.front();
+      }
+   }
+   return "Unknown GPU";
+}
+
+int LinuxSystemInfo::FindVramQuantity(const std::vector<std::string> &glxInfoData) const
+{
+   static const string rendererTag = "Total available memory: ";
+   for (const auto& line : glxInfoData)
+   {
+      const size_t pos = line.find(rendererTag);
+      if (pos != string::npos)
+      {
+         string data = line.substr(pos + rendererTag.size());
+         const size_t mbPos = data.find(" MB");
+         data = data.substr(0, mbPos);
+         return std::atoi(data.c_str());
+      }
+   }
+   return -1;
+}
+
+std::vector<int> LinuxSystemInfo::GetNvidiaSmiValues() const
+{
+   std::wstring output;
+   const int returnCode = Tools::RunExternalCommandToBuffer(L"nvidia-smi --query-gpu=clocks.max.graphics,clocks.current.graphics,clocks.max.memory,clocks.current.memory --format=csv", output);
+   if (returnCode == 0)
+   {
+      vector<string> lines;
+      StringTools::Tokenize(StringTools::UnicodeToUtf8(output), '\n', lines);
+
+      vector<string> values;
+      StringTools::Tokenize(lines.back(), ',', values);
+
+      vector<int> outputValues;
+      static const string endTag = " Mhz";
+      for (auto& value : values)
+      {
+         const size_t startPos = value.find_first_not_of(' ');
+         const size_t endPos = value.find(endTag);
+         const int output = std::atoi(value.substr(startPos, endPos).c_str());
+         outputValues.push_back(output);
+      }
+      return outputValues;
+   }
+   return {-1, -1, -1, -1};
+
 }

@@ -3,15 +3,16 @@
 
 #include "ISystemInfo.h"
 
+#include <vector>
+
 class LinuxSystemInfo : public ISystemInfo
 {
 public:
    LinuxSystemInfo() = default;
 
    CpuInfo GetCpu() override;
-   ProcessingUnitInfo GetGpu() override;
+   GpuInfo GetGpu() override;
    MemoryInfo GetRam() override;
-   MemoryInfo GetVram() override;
    std::string GetMotherboard() override;
    std::string GetBiosVersion() override;
 
@@ -23,6 +24,13 @@ private:
    std::string GetCpuBrandString() const;
    int GetCpuCoreCount() const;
    std::string GetInfoFileContent(const std::string& file) const;
+
+   std::vector<std::string> GetGlxInfoOutput() const;
+   std::string FindGpuVendor(const std::vector<std::string>& glxInfoData) const;
+   std::string FindGpuName(const std::vector<std::string>& glxInfoData) const;
+   int FindVramQuantity(const std::vector<std::string>& glxInfoData) const;
+
+   std::vector<int> GetNvidiaSmiValues() const;
 };
 
 #endif // LINUXSYSTEMINFO_H

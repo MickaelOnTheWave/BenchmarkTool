@@ -6,16 +6,11 @@
 struct ProcessingUnitInfo
 {
    std::string name;
+   std::string vendor;
    int minFrequencyMhz;
    int maxFrequencyMhz;
    int currentFrequencyMhz;
 };
-
-struct CpuInfo : public ProcessingUnitInfo
-{
-   int coreCount;
-};
-
 
 struct MemoryInfo
 {
@@ -23,13 +18,23 @@ struct MemoryInfo
    int frequencyMhz;
 };
 
+struct CpuInfo : public ProcessingUnitInfo
+{
+   int coreCount;
+};
+
+struct GpuInfo : public ProcessingUnitInfo
+{
+   MemoryInfo vram;
+};
+
+
 class ISystemInfo
 {
 public:
    virtual CpuInfo GetCpu() = 0;
-   virtual ProcessingUnitInfo GetGpu() = 0;
+   virtual GpuInfo GetGpu() = 0;
    virtual MemoryInfo GetRam() = 0;
-   virtual MemoryInfo GetVram() = 0;
    virtual std::string GetMotherboard() = 0;
    virtual std::string GetBiosVersion() = 0;
 

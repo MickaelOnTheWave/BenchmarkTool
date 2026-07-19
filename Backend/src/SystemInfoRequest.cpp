@@ -19,19 +19,17 @@ nlohmann::json SystemInfoRequest::CreateJsonResponse()
 
    const auto gpuInfo = systemInfo.GetGpu();
    SetFieldValues(j, "gpu", gpuInfo);
+   SetFieldValues(j["gpu"], "vram", gpuInfo.vram);
 /*
-   const auto vram = systemInfo.GetVram();
-   SetFieldValues(j, "vram", vram);
+   auto motherboard = systemInfo.GetMotherboard();
 
-   systemInfo.GetMotherboard();
+   auto biosVersion = systemInfo.GetBiosVersion();
 
-   systemInfo.GetBiosVersion();
+   auto videoDriver = systemInfo.GetVideoDriver();
 
-   systemInfo.GetVideoDriver();
-
-   systemInfo.GetOsName();
-
-   systemInfo.GetOsVersion()*/
+   auto osName = systemInfo.GetOsName();
+*/
+   //auto osVersion = systemInfo.GetOsVersion();
 
    j["status"] = "ok";
    return j;

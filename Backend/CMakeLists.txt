@@ -9,6 +9,8 @@ option(BUILD_TESTS "Build unit tests" OFF)
 add_subdirectory(libs/httplib)
 add_subdirectory(libs/json)
 add_subdirectory(libs/tinyxml)
+add_subdirectory(libs/BasicToolsLib)
+
 if(BUILD_TESTS)
     add_subdirectory(tests)
 endif()
@@ -37,6 +39,7 @@ target_include_directories(Core PUBLIC
 target_link_libraries(Core PUBLIC
     nlohmann_json
     tinyxml2
+    BasicToolsLib
 )
 
 add_executable(Backend
