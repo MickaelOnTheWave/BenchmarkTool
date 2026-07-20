@@ -15,6 +15,8 @@ private:
                               const ProcessingUnitInfo& info);
    static void SetFieldValues(nlohmann::json& j, const std::string& propertyFamily,
                               const MemoryInfo& info);
+   static void SetFieldValues(nlohmann::json& j, const std::string& propertyFamily,
+                              const BiosInfo& info);
 };
 
 #endif // SYSTEMINFOREQUEST_H

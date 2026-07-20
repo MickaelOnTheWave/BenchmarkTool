@@ -14,11 +14,10 @@ public:
    GpuInfo GetGpu() override;
    MemoryInfo GetRam() override;
    std::string GetMotherboard() override;
-   std::string GetBiosVersion() override;
+   BiosInfo GetBios() override;
 
-   std::string GetOsName() override;
-   std::string GetOsVersion() override;
-   std::string GetVideoDriver() override;
+   VideoDriverInfo GetVideoDriver() override;
+   OsInfo GetOs() override;
 
 private:
    std::string GetCpuBrandString() const;
@@ -31,6 +30,8 @@ private:
    int FindVramQuantity(const std::vector<std::string>& glxInfoData) const;
 
    std::vector<int> GetNvidiaSmiValues() const;
+   std::string GetBiosFileInfo(const std::string& filename) const;
+   std::string GetProperty(const std::string& propertyName, const std::vector<std::string>& lines) const;
 };
 
 #endif // LINUXSYSTEMINFO_H

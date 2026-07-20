@@ -4,7 +4,6 @@
 #include <cstring>
 #include <sys/sysinfo.h>
 
-#include <algorithm>
 #include <fstream>
 #include <sstream>
 
@@ -31,11 +30,8 @@ namespace
 CpuInfo LinuxSystemInfo::GetCpu()
 {
    CpuInfo info;
-   //info.name = GetInfoFileContent("/proc/cpuinfo");
-
    info.name = GetCpuBrandString();
    info.coreCount = GetCpuCoreCount();
-
 
    info.minFrequencyMhz = InMhz(GetInfoFileContent("/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq"));
    info.maxFrequencyMhz = InMhz(GetInfoFileContent("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq"));
@@ -84,34 +80,42 @@ MemoryInfo LinuxSystemInfo::GetRam()
    return info;
 }
 
-MemoryInfo LinuxSystemInfo::GetVram()
-{
-
-}
-
 std::string LinuxSystemInfo::GetMotherboard()
 {
-
+   std::ifstream boardName("/sys/class/dmi/id/board_name");
+   if (boardName.is_open())
+   {
+      std::string line;
+      std::getline(boardName, line);
+      return line;
+   }
+   return "Unknown Motherboard";
 }
 
-std::string LinuxSystemInfo::GetBiosVersion()
+BiosInfo LinuxSystemInfo::GetBios()
 {
-
+   BiosInfo info;
+   info.vendor = GetBiosFileInfo("bios_vendor");
+   info.version = GetBiosFileInfo("bios_release");
+   info.date = GetBiosFileInfo("bios_date");
+   return info;
 }
 
-std::string LinuxSystemInfo::GetOsName()
+VideoDriverInfo LinuxSystemInfo::GetVideoDriver()
 {
-
+   VideoDriverInfo info;
+   return info;
 }
 
-std::string LinuxSystemInfo::GetOsVersion()
+OsInfo LinuxSystemInfo::GetOs()
 {
+   vector<string> fileLines;
+   StringTools::Tokenize(GetInfoFileContent("/etc/os-release"), '\n', fileLines);
 
-}
-
-std::string LinuxSystemInfo::GetVideoDriver()
-{
-
+   OsInfo info;
+   info.name = GetProperty("NAME", fileLines);
+   info.version = GetProperty("VERSION_ID", fileLines);
+   return info;
 }
 
 int LinuxSystemInfo::GetCpuCoreCount() const
@@ -233,4 +237,33 @@ std::vector<int> LinuxSystemInfo::GetNvidiaSmiValues() const
    }
    return {-1, -1, -1, -1};
 
+}
+
+string LinuxSystemInfo::GetBiosFileInfo(const std::string &filename) const
+{
+   const string fullFilename = "/sys/class/dmi/id/" + filename;
+   std::ifstream biosFile(fullFilename);
+   if (biosFile.is_open())
+   {
+      std::string line;
+      std::getline(biosFile, line);
+      return line;
+   }
+   return "Unknown";
+}
+
+string LinuxSystemInfo::GetProperty(const std::string &propertyName, const std::vector<std::string> &lines) const
+{
+   const string tagToFind = propertyName + "=";
+   for (const auto& line : lines)
+   {
+      if (line.find(tagToFind) == 0)
+      {
+         const string rawData = line.substr(tagToFind.size());
+         if (rawData.front() == '"' && rawData.back() == '"')
+            return rawData.substr(1,rawData.size()-2);
+         return rawData;
+      }
+   }
+   return "Unknown";
 }
