@@ -587,14 +587,38 @@ function closeMachineDialog()
     document.getElementById("addMachineDialog").style.display = "none";
 }
 
-function addThisMachineDialog()
+async function addThisMachine()
 {
-    //document.getElementById("addThisMachineDialog").style.display = "flex";
+    const response = await fetch("/api/get-local-system-info");
+    const systemInfo = await response.json();
+
+    if (systemInfo.status !== "ok") {
+        alert("Failed to get system info: " + (systemInfo.message || "Unknown error"));
+        return;
+    }
+
+    // Map system info to form fields - keep "My Machine" as default name
+    // document.getElementById("fmName").value = systemInfo.cpu?.name || "";
+    document.getElementById("fmCpu").value = systemInfo.cpu?.name || "";
+    document.getElementById("fmGpu").value = systemInfo.gpu?.name || "";
+    document.getElementById("fmRamGb").value = Math.round((systemInfo.ram?.quantityMb || 0) / 1024);
+    document.getElementById("fmMotherboard").value = systemInfo.motherboard?.name || "";
+
+    document.getElementById("fmCpuFreqGhz").value = (systemInfo.cpu?.currentFrequencyMhz || 0) / 1000;
+    document.getElementById("fmGpuFreqMhz").value = systemInfo.gpu?.currentFrequencyMhz || 0;
+    document.getElementById("fmRamFreqMhz").value = systemInfo.ram?.frequencyMhz || 0;
+
+    document.getElementById("fmOs").value = systemInfo.os?.name || "";
+    document.getElementById("fmOsVersion").value = systemInfo.os?.version || "";
+    document.getElementById("fmDriverFamily").value = systemInfo.gpu?.driver?.type || "";
+    document.getElementById("fmDriverVersion").value = systemInfo.gpu?.driver?.version || "";
+
+    document.getElementById("addFullMachineDialog").style.display = "flex";
 }
 
-function closeAddThisMachineDialog()
+function closeAddFullMachineDialog()
 {
-    //document.getElementById("addThisMachineDialog").style.display = "flex";
+    document.getElementById("addFullMachineDialog").style.display = "none";
 }
 
 
@@ -616,6 +640,53 @@ async function submitMachine()
 
     closeMachineDialog();
     loadMachines();
+}
+
+async function submitAddFullMachine()
+{
+    const payload = {
+        machine: {
+            name: document.getElementById("fmName").value,
+            cpu: document.getElementById("fmCpu").value,
+            gpu: document.getElementById("fmGpu").value,
+            ramGb: parseInt(document.getElementById("fmRamGb").value || "0"),
+            motherboard: document.getElementById("fmMotherboard").value
+        },
+        hardwareConfig: {
+            name: document.getElementById("fmHwName").value,
+            cpuFreqGhz: parseFloat(document.getElementById("fmCpuFreqGhz").value || "0"),
+            gpuFreqMhz: parseInt(document.getElementById("fmGpuFreqMhz").value || "0"),
+            ramFreqMhz: parseInt(document.getElementById("fmRamFreqMhz").value || "0"),
+            settings: "{}"
+        },
+        softwareEnvironment: {
+            name: document.getElementById("fmSwEnvName").value,
+            os: document.getElementById("fmOs").value,
+            osVersion: document.getElementById("fmOsVersion").value,
+            driverFamily: document.getElementById("fmDriverFamily").value
+        },
+        softwareConfig: {
+            name: document.getElementById("fmSwConfigName").value,
+            driverVersion: document.getElementById("fmDriverVersion").value,
+            mode: document.getElementById("fmMode").value,
+            settings: "{}"
+        }
+    };
+
+    const response = await fetch("/api/add-full-machine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+
+    if (result.status === "ok") {
+        closeAddFullMachineDialog();
+        loadMachines();
+    } else {
+        alert("Failed to create machine: " + (result.message || "Unknown error"));
+    }
 }
 
 function openRunDialog()
@@ -1254,7 +1325,9 @@ window.setView = setView;
 window.submitMachine = submitMachine;
 window.closeMachineDialog = closeMachineDialog;
 window.openMachineDialog = openMachineDialog;
-window.addThisMachineDialog = openAddThisMachineDialog;
+window.addThisMachine = addThisMachine;
+window.closeAddFullMachineDialog = closeAddFullMachineDialog;
+window.submitAddFullMachine = submitAddFullMachine;
 
 window.openRunDialog = openRunDialog;
 window.closeRunDialog = closeRunDialog;

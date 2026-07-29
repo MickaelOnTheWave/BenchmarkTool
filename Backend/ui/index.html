@@ -137,6 +137,67 @@
       </div>
    </div>
 
+   <div id="addFullMachineDialog" class="modal" style="display:none;">
+      <div class="modal-content" style="width: auto; max-width: 900px; max-height: 90vh; overflow: auto;">
+         <h3>Add This Machine (Full Setup)</h3>
+
+         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <fieldset style="border: 1px solid #ccc; padding: 8px; border-radius: 4px; display: flex; flex-direction: column; gap: 4px;">
+               <legend>Machine</legend>
+               <label>Name</label>
+               <input id="fmName" type="text" value="My Machine">
+               <label>CPU</label>
+               <input id="fmCpu" type="text">
+               <label>GPU</label>
+               <input id="fmGpu" type="text">
+               <label>RAM (GB)</label>
+               <input id="fmRamGb" type="number">
+               <label>Motherboard</label>
+               <input id="fmMotherboard" type="text">
+            </fieldset>
+
+            <fieldset style="border: 1px solid #ccc; padding: 8px; border-radius: 4px; display: flex; flex-direction: column; gap: 4px;">
+               <legend>Hardware Configuration</legend>
+               <label>Name</label>
+               <input id="fmHwName" type="text" value="Default">
+               <label>CPU Frequency (GHz)</label>
+               <input id="fmCpuFreqGhz" type="number" step="0.01">
+               <label>GPU Frequency (MHz)</label>
+               <input id="fmGpuFreqMhz" type="number">
+               <label>RAM Frequency (MHz)</label>
+               <input id="fmRamFreqMhz" type="number">
+            </fieldset>
+
+            <fieldset style="border: 1px solid #ccc; padding: 8px; border-radius: 4px; display: flex; flex-direction: column; gap: 4px;">
+               <legend>Software Environment</legend>
+               <label>Name</label>
+               <input id="fmSwEnvName" type="text" value="Default">
+               <label>OS</label>
+               <input id="fmOs" type="text">
+               <label>OS Version</label>
+               <input id="fmOsVersion" type="text">
+               <label>Driver Family</label>
+               <input id="fmDriverFamily" type="text">
+            </fieldset>
+
+            <fieldset style="border: 1px solid #ccc; padding: 8px; border-radius: 4px; display: flex; flex-direction: column; gap: 4px;">
+               <legend>Software Configuration</legend>
+               <label>Name</label>
+               <input id="fmSwConfigName" type="text" value="Default">
+               <label>Driver Version</label>
+               <input id="fmDriverVersion" type="text">
+               <label>Mode</label>
+               <input id="fmMode" type="text">
+            </fieldset>
+         </div>
+
+         <div style="margin-top:12px; display:flex; gap:8px;">
+            <button onclick="submitAddFullMachine()">Create All</button>
+            <button onclick="closeAddFullMachineDialog()">Cancel</button>
+         </div>
+      </div>
+   </div>
+
    <div id="runDialog" class="modal" style="display:none;">
      <div class="modal-content">
        <h3>Add Benchmark Run</h3>
