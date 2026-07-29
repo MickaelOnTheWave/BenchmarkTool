@@ -64,6 +64,7 @@ private:
 
    void ImportFiles(const httplib::Request& req, httplib::Response& res);
    void ExecuteImportPlan(const httplib::Request& req, httplib::Response& res);
+   void AddFullMachineRequest(const httplib::Request& req, httplib::Response& res);
 
    // Helpers
    void ListEntitiesHttp(Database& db, Server::EntityDescriptor& entity, httplib::Response& res);
@@ -78,6 +79,8 @@ private:
    std::string BuildSqlInsertQuery(const Server::EntityDescriptor& entity);
 
    void SetHttpResponse(httplib::Response& res, const ErrorList& errors);
+   void SetHttpResponse(httplib::Response& res, const int httpStatusCode, const std::string& message);
+   void SetHttpResponse400(httplib::Response& res, const std::string& message);
 
    httplib::Server server;
    Database db;
