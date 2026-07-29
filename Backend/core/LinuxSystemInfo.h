@@ -32,6 +32,8 @@ private:
    std::vector<int> GetNvidiaSmiValues() const;
    std::string GetBiosFileInfo(const std::string& filename) const;
    std::string GetProperty(const std::string& propertyName, const std::vector<std::string>& lines) const;
+
+   std::string GetDriverInfo() const;
 };
 
 #endif // LINUXSYSTEMINFO_H

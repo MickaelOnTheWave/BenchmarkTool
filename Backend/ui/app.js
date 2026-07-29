@@ -19,6 +19,7 @@ async function setView(view)
      {
          await loadMachines();
          document.getElementById("addMachineBtn").onclick = openMachineDialog;
+         document.getElementById("addThisMachineBtn").onclick = addThisMachine;
      }
 
      if (view === "details")
@@ -585,6 +586,17 @@ function closeMachineDialog()
 {
     document.getElementById("addMachineDialog").style.display = "none";
 }
+
+function addThisMachineDialog()
+{
+    //document.getElementById("addThisMachineDialog").style.display = "flex";
+}
+
+function closeAddThisMachineDialog()
+{
+    //document.getElementById("addThisMachineDialog").style.display = "flex";
+}
+
 
 async function submitMachine()
 {
@@ -1242,6 +1254,7 @@ window.setView = setView;
 window.submitMachine = submitMachine;
 window.closeMachineDialog = closeMachineDialog;
 window.openMachineDialog = openMachineDialog;
+window.addThisMachineDialog = openAddThisMachineDialog;
 
 window.openRunDialog = openRunDialog;
 window.closeRunDialog = closeRunDialog;

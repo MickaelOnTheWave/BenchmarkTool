@@ -104,6 +104,7 @@ BiosInfo LinuxSystemInfo::GetBios()
 VideoDriverInfo LinuxSystemInfo::GetVideoDriver()
 {
    VideoDriverInfo info;
+   auto content = GetDriverInfo();
    return info;
 }
 
@@ -236,7 +237,6 @@ std::vector<int> LinuxSystemInfo::GetNvidiaSmiValues() const
       return outputValues;
    }
    return {-1, -1, -1, -1};
-
 }
 
 string LinuxSystemInfo::GetBiosFileInfo(const std::string &filename) const
@@ -266,4 +266,66 @@ string LinuxSystemInfo::GetProperty(const std::string &propertyName, const std::
       }
    }
    return "Unknown";
+}
+
+
+string LinuxSystemInfo::GetDriverInfo() const
+{
+   std::string result;
+   std::string cmd;
+
+   // Check for NVIDIA proprietary modules
+   cmd = "lsmod | grep -E 'nvidia|nouveau' | awk '{print $1}'";
+   FILE* pipe = popen(cmd.c_str(), "r");
+   if (!pipe) return "Error";
+
+   char buffer[128];
+   while (fgets(buffer, sizeof(buffer), pipe))
+   {
+      std::string module(buffer);
+      module.erase(module.find_last_not_of(" \n\r\t")); // Trim
+
+      result += "Module: " + module + "\n";
+      result += "Status: ";
+
+      // Differentiate between NVIDIA and Nouveau
+      if (module.find("nvidia") != std::string::npos)
+      {
+         result += "Proprietary NVIDIA\n";
+         // Get NVIDIA-specific version
+         cmd = "cat /proc/driver/nvidia/version";
+         FILE* nvidia_pipe = popen(cmd.c_str(), "r");
+         if (nvidia_pipe) {
+            while (fgets(buffer, sizeof(buffer), nvidia_pipe)) {
+               result += "Version: " + std::string(buffer);
+            }
+            pclose(nvidia_pipe);
+         }
+      }
+      else if (module == "nouveau")
+      {
+         result += "Open-Source (Nouveau)\n";
+         cmd = "modinfo nouveau | grep -E 'version|firmware'";
+         FILE* nouveau_pipe = popen(cmd.c_str(), "r");
+         if (nouveau_pipe) {
+            while (fgets(buffer, sizeof(buffer), nouveau_pipe)) {
+               result += "Detail: " + std::string(buffer);
+            }
+            pclose(nouveau_pipe);
+         }
+      }
+
+      // Generic modinfo for other drivers (e.g., amdgpu, i915)
+      cmd = "modinfo " + module + " | grep -E 'version|firmware|license'";
+      FILE* generic_pipe = popen(cmd.c_str(), "r");
+      if (generic_pipe)
+      {
+         while (fgets(buffer, sizeof(buffer), generic_pipe)) {
+            result += "Detail: " + std::string(buffer);
+         }
+         pclose(generic_pipe);
+      }
+   }
+   pclose(pipe);
+   return result;
 }
