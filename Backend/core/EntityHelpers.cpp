@@ -88,6 +88,44 @@ EntityListDescriptor EntityHelpers::ListSoftwareConfigs()
    return descriptor;
 }
 
+EntityListDescriptor EntityHelpers::ListTests()
+{
+   EntityListDescriptor descriptor;
+   descriptor.rootField = "tests";
+   descriptor.table = "Test";
+   descriptor.selectFields = "Id, Name, Description, IconPath";
+   descriptor.selectMapper = [](sqlite3_stmt* sqlStatement, json& jsonObj)
+   {
+      jsonObj["description"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 2));
+      jsonObj["iconPath"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 3));
+   };
+   return descriptor;
+}
+
+EntityListDescriptor EntityHelpers::ListTestConfigs()
+{
+   EntityListDescriptor descriptor;
+   descriptor.rootField = "testConfigurations";
+   descriptor.table = "TestConfiguration";
+   descriptor.selectFields = "Id, Name, TestId, Settings";
+   descriptor.selectMapper = [](sqlite3_stmt* sqlStatement, json& jsonObj)
+   {
+      jsonObj["testId"] = sqlite3_column_int(sqlStatement, 2);
+
+      const char* settingsText =
+         reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 3));
+
+      if (settingsText)
+      {
+         json parsed = json::parse(settingsText, nullptr, false);
+         jsonObj["settings"] = parsed.is_discarded() ? json::object() : parsed;
+      }
+      else
+         jsonObj["settings"] = json::object();
+   };
+   return descriptor;
+}
+
 EntityCreateDescriptor EntityHelpers::CreateMachine(const json &data)
 {
    EntityCreateDescriptor descriptor;
@@ -191,5 +229,25 @@ EntityCreateDescriptor EntityHelpers::CreateTest(const nlohmann::json &data)
    };
 
    descriptor.validator = ValidateTest;
+   return descriptor;
+}
+
+EntityCreateDescriptor EntityHelpers::CreateTestConfig(const nlohmann::json &data)
+{
+   EntityCreateDescriptor descriptor;
+   descriptor.table = "TestConfiguration";
+   descriptor.insertFields = {
+      "Name",
+      "TestId",
+      "Settings"
+   };
+
+   descriptor.insertBinder = [&data](sqlite3_stmt* stmt)
+   {
+      sqlite3_bind_text(stmt, 1, data.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
+      sqlite3_bind_int(stmt, 2, data.value("testId", 0));
+      sqlite3_bind_text(stmt, 3, data.value("settings", "{}").c_str(), -1, SQLITE_TRANSIENT);
+   };
+   descriptor.validator = ValidateTestConfiguration;
    return descriptor;
 }

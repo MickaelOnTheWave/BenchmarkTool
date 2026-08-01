@@ -12,6 +12,8 @@
 #include "requests/SoftwareConfigRequests.h"
 #include "requests/SoftwareEnvironmentRequests.h"
 #include "requests/SystemInfoRequest.h"
+#include "requests/TestConfigRequests.h"
+#include "requests/TestRequests.h"
 #include "ThreeDMarkImporter.h"
 
 using json = nlohmann::json;
@@ -177,30 +179,30 @@ void Server::RegisterRoutes()
       return SoftwareConfigRequests::Delete(db, input);
    });
 
-   server.Get("/api/list-tests", [this](const httplib::Request& req, httplib::Response& res)
+   AddApiGetHandler("/api/list-tests", [](Database& db, const nlohmann::json& input)
    {
-      ListTestsRequest(req, res);
+      return TestRequests::List(db, input);
    });
-   server.Post("/api/create-test", [this](const httplib::Request& req, httplib::Response& res)
+   AddApiPostHandler("/api/create-test", [](Database& db, const nlohmann::json& input)
    {
-      CreateTestRequest(req, res);
+      return TestRequests::Create(db, input);
    });
-   server.Delete(R"(/api/delete-test/(\d+))", [this](const httplib::Request& req, httplib::Response& res)
+   AddApiDeleteHandler("/api/delete-test", [](Database& db, const nlohmann::json& input)
    {
-      DeleteTestRequest(req, res);
+      return TestRequests::Delete(db, input);
    });
 
-   server.Get("/api/list-test-configs", [this](const httplib::Request& req, httplib::Response& res)
+   AddApiGetHandler("/api/list-test-configs", [](Database& db, const nlohmann::json& input)
    {
-      ListTestConfigsRequest(req, res);
+      return TestConfigRequests::List(db, input);
    });
-   server.Post("/api/create-test-config", [this](const httplib::Request& req, httplib::Response& res)
+   AddApiPostHandler("/api/create-test-config", [](Database& db, const nlohmann::json& input)
    {
-      CreateTestConfigRequest(req, res);
+      return TestConfigRequests::Create(db, input);
    });
-   server.Delete(R"(/api/delete-test-config/(\d+))", [this](const httplib::Request& req, httplib::Response& res)
+   AddApiDeleteHandler("/api/delete-test-config", [](Database& db, const nlohmann::json& input)
    {
-      DeleteTestConfigRequest(req, res);
+      return TestConfigRequests::Delete(db, input);
    });
 
    server.Get("/api/list-origins", [this](const httplib::Request& req, httplib::Response& res)
@@ -295,60 +297,9 @@ void Server::DbStatusRequest(const httplib::Request&, httplib::Response& res)
    res.set_content(j.dump(3), "application/json");
 }
 
-void Server::ListSoftwareConfigsRequest(const httplib::Request&, httplib::Response& res)
-{
-   EntityCreateDescriptor entity;
-
-   entity.rootField = "softwareConfigurations";
-   entity.table = "SoftwareConfiguration";
-   entity.fields =
-      "Id, Name, SoftwareEnvironmentId, DriverVersion, Mode, Settings";
-
-   entity.selectMapper = [](sqlite3_stmt* stmt, json& obj)
-   {
-      obj["softwareEnvironmentId"] = sqlite3_column_int(stmt, 2);
-      obj["driverVersion"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
-      obj["mode"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
-      obj["settings"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
-   };
-
-   ListEntitiesHttp(db, entity, res);
-}
-
-void Server::CreateSoftwareConfigRequest(const httplib::Request& req, httplib::Response& res)
-{
-   EntityDescriptor entity;
-   entity.table = "SoftwareConfiguration";
-   entity.insertFields = {
-      "Name",
-      "SoftwareEnvironmentId",
-      "DriverVersion",
-      "Mode",
-      "Settings"
-   };
-
-   entity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
-   {
-      sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_int(stmt, 2, j.value("softwareEnvironmentId", 0));
-      sqlite3_bind_text(stmt, 3, j.value("driverVersion", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_text(stmt, 4, j.value("mode", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_text(stmt, 5, j.value("settings", "{}").c_str(), -1, SQLITE_TRANSIENT);
-   };
-
-   entity.validator = ValidateSoftwareConfiguration;
-
-   InsertEntityHttp(db, entity, req, res);
-}
-
-void Server::DeleteSoftwareConfigRequest(const httplib::Request& req, httplib::Response& res)
-{
-   DeleteEntityHttp(req, res, "SoftwareConfiguration");
-}
-
 void Server::ListTestsRequest(const httplib::Request&, httplib::Response& res)
 {
-   EntityDescriptor entity;
+   EntityCreateDescriptor entity;
 
    entity.rootField = "tests";
    entity.table = "Test";

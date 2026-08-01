@@ -29,14 +29,15 @@ public:
    static EntityListDescriptor ListHardwareConfigs();
    static EntityListDescriptor ListSoftwareEnvironments();
    static EntityListDescriptor ListSoftwareConfigs();
+   static EntityListDescriptor ListTests();
+   static EntityListDescriptor ListTestConfigs();
 
    static EntityCreateDescriptor CreateMachine(const nlohmann::json& data);
    static EntityCreateDescriptor CreateHardwareConfig(const nlohmann::json& data);
    static EntityCreateDescriptor CreateSoftwareEnvironment(const nlohmann::json& data);
-
-
    static EntityCreateDescriptor CreateSoftwareConfig(const nlohmann::json& data);
    static EntityCreateDescriptor CreateTest(const nlohmann::json& data);
+   static EntityCreateDescriptor CreateTestConfig(const nlohmann::json& data);
 };
 
 #endif // ENTITYHELPERS_H

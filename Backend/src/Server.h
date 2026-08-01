@@ -30,9 +30,6 @@ private:
    // Request handlers
    void DbStatusRequest(const httplib::Request& req, httplib::Response& res);
 
-   void ListSoftwareConfigsRequest(const httplib::Request& req, httplib::Response& res);
-   void CreateSoftwareConfigRequest(const httplib::Request& req, httplib::Response& res);
-   void DeleteSoftwareConfigRequest(const httplib::Request& req, httplib::Response& res);
    void ListTestsRequest(const httplib::Request& req, httplib::Response& res);
    void CreateTestRequest(const httplib::Request& req, httplib::Response& res);
    void DeleteTestRequest(const httplib::Request& req, httplib::Response& res);

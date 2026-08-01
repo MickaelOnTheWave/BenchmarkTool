@@ -54,6 +54,8 @@ add_executable(Backend
    src/requests/HardwareConfigRequests.h src/requests/HardwareConfigRequests.cpp
    src/requests/SoftwareEnvironmentRequests.h src/requests/SoftwareEnvironmentRequests.cpp
    src/requests/SoftwareConfigRequests.h src/requests/SoftwareConfigRequests.cpp
+   src/requests/TestRequests.h src/requests/TestRequests.cpp
+   src/requests/TestConfigRequests.h src/requests/TestConfigRequests.cpp
 )
 
 target_link_libraries(Backend PRIVATE
