@@ -50,12 +50,14 @@ add_executable(Backend
    src/Server.h src/Server.cpp
    src/requests/SystemInfoRequest.h src/requests/SystemInfoRequest.cpp
    src/requests/AddFullMachineRequest.h src/requests/AddFullMachineRequest.cpp
-   src/requests/MachineRequests.h src/requests/MachineRequests.cpp
+
    src/requests/HardwareConfigRequests.h src/requests/HardwareConfigRequests.cpp
    src/requests/SoftwareEnvironmentRequests.h src/requests/SoftwareEnvironmentRequests.cpp
    src/requests/SoftwareConfigRequests.h src/requests/SoftwareConfigRequests.cpp
    src/requests/TestRequests.h src/requests/TestRequests.cpp
    src/requests/TestConfigRequests.h src/requests/TestConfigRequests.cpp
+   src/requests/TypeRequestHandler.h src/requests/TypeRequestHandler.cpp
+   src/requests/MachineRequestHandler.h src/requests/MachineRequestHandler.cpp
 )
 
 target_link_libraries(Backend PRIVATE

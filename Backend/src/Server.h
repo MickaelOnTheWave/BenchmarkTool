@@ -8,6 +8,7 @@
 
 #include "Database.h"
 #include "EntityHelpers.h"
+#include "requests/TypeRequestHandler.h"
 
 class Server
 {
@@ -17,6 +18,8 @@ public:
 
 private:
    void RegisterRoutes();
+
+   void AddCrudTypeHandlers(const std::string& typeName, TypeRequestHandler* requestHandler);
 
    using ApiHandler = std::function<nlohmann::json(Database& db, const nlohmann::json& input)>;
    using HttpHandler = std::function<void(const httplib::Request& req, httplib::Response& res)>;
@@ -42,7 +45,6 @@ private:
    void AddFullMachineRequest(const httplib::Request& req, httplib::Response& res);
 
    // Helpers
-   void InsertEntityHttp(Database& db, const EntityCreateDescriptor& entity, const httplib::Request& req, httplib::Response& res);
    std::optional<std::string> InsertEntity(Database& db, const EntityCreateDescriptor& entity, const nlohmann::json& input);
 
    void DeleteEntityHttp(const httplib::Request& req, httplib::Response& res, const std::string& table);
@@ -56,6 +58,7 @@ private:
 
    httplib::Server server;
    Database db;
+   std::vector<std::shared_ptr<TypeRequestHandler>> requestHandlers;
 };
 
 #endif

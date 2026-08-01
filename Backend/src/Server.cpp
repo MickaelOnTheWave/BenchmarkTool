@@ -8,7 +8,7 @@
 #include "Normalizer.h"
 #include "requests/AddFullMachineRequest.h"
 #include "requests/HardwareConfigRequests.h"
-#include "requests/MachineRequests.h"
+#include "requests/MachineRequestHandler.h"
 #include "requests/SoftwareConfigRequests.h"
 #include "requests/SoftwareEnvironmentRequests.h"
 #include "requests/SystemInfoRequest.h"
@@ -126,18 +126,7 @@ void Server::RegisterRoutes()
       return SystemInfoRequest::CreateJsonResponse();
    });
 
-   AddApiGetHandler("/api/list-machines", [](Database& db, const nlohmann::json& input)
-   {
-      return MachineRequests::List(db, input);
-   });
-   AddApiPostHandler("/api/create-machine", [](Database& db, const nlohmann::json& input)
-   {
-      return MachineRequests::Create(db, input);
-   });
-   AddApiDeleteHandler("/api/delete-machine", [](Database& db, const nlohmann::json& input)
-   {
-      return MachineRequests::Delete(db, input);
-   });
+   AddCrudTypeHandlers("machine", new MachineRequestHandler());
 
    AddApiGetHandler("/api/list-hardware-configs", [](Database& db, const nlohmann::json& input)
    {
@@ -244,6 +233,25 @@ void Server::RegisterRoutes()
    });
 }
 
+void Server::AddCrudTypeHandlers(const std::string &typeName, TypeRequestHandler *requestHandler)
+{
+   auto sharedHandler = std::shared_ptr<TypeRequestHandler>(requestHandler);
+   requestHandlers.push_back(sharedHandler);
+
+   AddApiGetHandler("/api/list-" + typeName + "s", [sharedHandler](Database& db, const nlohmann::json& input)
+   {
+      return sharedHandler->List(db, input);
+   });
+   AddApiPostHandler("/api/create-" + typeName, [sharedHandler](Database& db, const nlohmann::json& input)
+   {
+      return sharedHandler->Create(db, input);
+   });
+   AddApiDeleteHandler("/api/delete-" + typeName, [sharedHandler](Database& db, const nlohmann::json& input)
+   {
+     return sharedHandler->Delete(db, input);
+   });
+}
+
 void Server::AddApiGetHandler(const std::string &endpoint, ApiHandler handler)
 {
    server.Get(endpoint, CreateHttpHandler(handler));
@@ -299,12 +307,12 @@ void Server::DbStatusRequest(const httplib::Request&, httplib::Response& res)
 
 void Server::ListOriginsRequest(const httplib::Request&, httplib::Response& res)
 {
-   EntityCreateDescriptor entity;
+   EntityListDescriptor entity;
 
    entity.rootField = "origins";
    entity.table = "Origin";
    // Alias OriginType as the Name column (column 1) for the generic ListEntities mapper.
-   entity.fields = "Id, OriginType, RunId, ExternalId, SourceFile, CreatedAt";
+   entity.selectFields = "Id, OriginType, RunId, ExternalId, SourceFile, CreatedAt";
 
    entity.selectMapper = [](sqlite3_stmt* stmt, json& obj)
    {
@@ -697,7 +705,7 @@ void Server::ExecuteImportPlan(const httplib::Request& req, httplib::Response& r
    // Helper: resolve one entity from its sub-plan. Returns the id (existing
    // or newly created), or 0 on failure (with the error response already set).
    auto resolveEntity = [&](const std::string& planKey,
-                            const EntityDescriptor& descriptor,
+                            const EntityCreateDescriptor& descriptor,
                             const std::string& parentFkField = "",
                             int parentId = 0) -> int
    {
@@ -739,7 +747,7 @@ void Server::ExecuteImportPlan(const httplib::Request& req, httplib::Response& r
    };
 
    // --- 1. Machine --------------------------------------------------------
-   EntityDescriptor machineDesc;
+   EntityCreateDescriptor machineDesc = EntityHelpers::CreateMachine();
    machineDesc.table = "Machine";
    machineDesc.insertFields = {"Name", "Cpu", "Gpu", "RamGb", "Motherboard"};
    machineDesc.insertBinder = [](sqlite3_stmt* stmt, const json& j)
@@ -755,7 +763,7 @@ void Server::ExecuteImportPlan(const httplib::Request& req, httplib::Response& r
    if (machineId <= 0) return;
 
    // --- 2. Hardware Configuration -----------------------------------------
-   EntityDescriptor hwDesc;
+   EntityCreateDescriptor hwDesc;
    hwDesc.table = "HardwareConfiguration";
    hwDesc.insertFields = {"Name", "MachineId", "CpuFreqGhz", "GpuFreqMhz", "RamFreqMhz", "Settings"};
    hwDesc.insertBinder = [](sqlite3_stmt* stmt, const json& j)
@@ -772,7 +780,7 @@ void Server::ExecuteImportPlan(const httplib::Request& req, httplib::Response& r
    if (hwConfigId <= 0) return;
 
    // --- 3. Software Environment -------------------------------------------
-   EntityDescriptor envDesc;
+   EntityCreateDescriptor envDesc;
    envDesc.table = "SoftwareEnvironment";
    envDesc.insertFields = {"Name", "Os", "OsVersion", "DriverFamily"};
    envDesc.insertBinder = [](sqlite3_stmt* stmt, const json& j)
@@ -787,7 +795,7 @@ void Server::ExecuteImportPlan(const httplib::Request& req, httplib::Response& r
    if (envId <= 0) return;
 
    // --- 4. Software Configuration -----------------------------------------
-   EntityDescriptor swDesc;
+   EntityCreateDescriptor swDesc;
    swDesc.table = "SoftwareConfiguration";
    swDesc.insertFields = {"Name", "SoftwareEnvironmentId", "DriverVersion", "Mode", "Settings"};
    swDesc.insertBinder = [](sqlite3_stmt* stmt, const json& j)
@@ -803,7 +811,7 @@ void Server::ExecuteImportPlan(const httplib::Request& req, httplib::Response& r
    if (swConfigId <= 0) return;
 
    // --- 5. Test -----------------------------------------------------------
-   EntityDescriptor testDesc;
+   EntityCreateDescriptor testDesc;
    testDesc.table = "Test";
    testDesc.insertFields = {"Name", "Description", "IconPath"};
    testDesc.insertBinder = [](sqlite3_stmt* stmt, const json& j)
@@ -817,7 +825,7 @@ void Server::ExecuteImportPlan(const httplib::Request& req, httplib::Response& r
    if (testId <= 0) return;
 
    // --- 6. Test Configuration ---------------------------------------------
-   EntityDescriptor testCfgDesc;
+   EntityCreateDescriptor testCfgDesc;
    testCfgDesc.table = "TestConfiguration";
    testCfgDesc.insertFields = {"Name", "TestId", "Settings"};
    testCfgDesc.insertBinder = [](sqlite3_stmt* stmt, const json& j)
@@ -941,55 +949,7 @@ void Server::ExecuteImportPlan(const httplib::Request& req, httplib::Response& r
    res.set_content(response.dump(), "application/json");
 }
 
-void Server::InsertEntityHttp(Database& db, const EntityCreateDescriptor& entity, const httplib::Request& req, httplib::Response& res)
-{
-   json response;
-   json entityJsonData = json::parse(req.body, nullptr, false);
-   if (entityJsonData.is_discarded())
-   {
-      res.status = 400;
-      response["status"] = "error";
-      response["message"] = "Invalid JSON";
-      res.set_content(response.dump(), "application/json");
-      return;
-   }
-
-   ErrorList validationErrors;
-   if (entity.validator)
-      validationErrors = entity.validator(entityJsonData);
-
-   if (!validationErrors.empty())
-   {
-      SetHttpResponse(res, validationErrors);
-      return;
-   }
-
-   auto insertResult = InsertEntity(db, entity, entityJsonData);
-   if (insertResult.has_value())
-   {
-      std::string message = insertResult.value();
-      std::string formattedMessage;
-      if (TryFormatNotNullConstraintError(message, formattedMessage))
-      {
-         res.status = 400;
-         message = formattedMessage;
-      }
-      else
-      {
-         res.status = 500;
-      }
-
-      response["status"] = "error";
-      response["message"] = message;
-      res.set_content(response.dump(), "application/json");
-      return;
-   }
-
-   response["status"] = "ok";
-   res.set_content(response.dump(), "application/json");
-}
-
-std::optional<std::string> Server::InsertEntity(Database& db, const Server::EntityDescriptor& entity, const json& input)
+std::optional<std::string> Server::InsertEntity(Database& db, const EntityCreateDescriptor& entity, const json& input)
 {
    const std::string insertQuery = BuildSqlInsertQuery(entity);
 
@@ -1049,7 +1009,7 @@ std::optional<std::string> Server::DeleteEntityById(const std::string& table, in
    return DeleteByField(db.GetHandle(), table, "Id", id, affectedRows);
 }
 
-std::string Server::BuildSqlInsertQuery(const Server::EntityDescriptor& entity)
+std::string Server::BuildSqlInsertQuery(const EntityCreateDescriptor& entity)
 {
    std::string sql = "INSERT INTO " + entity.table + " (";
 
