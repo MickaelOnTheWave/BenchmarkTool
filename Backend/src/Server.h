@@ -1,14 +1,13 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include <functional>
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 #include <sqlite3.h>
 #include <string>
-#include <vector>
 
 #include "Database.h"
+#include "EntityHelpers.h"
 
 class Server
 {
@@ -17,30 +16,20 @@ public:
    void Run();
 
 private:
-   using ErrorList = std::vector<std::string>;
-   struct EntityDescriptor
-   {
-      std::string table;
-      std::string fields;
-      std::string rootField;
-
-      std::function<void(sqlite3_stmt*, nlohmann::json&)> selectMapper;
-
-      std::vector<std::string> insertFields;
-      std::function<void(sqlite3_stmt*, const nlohmann::json&)> insertBinder;
-      std::function<ErrorList(const nlohmann::json&)> validator;
-   };
-
    void RegisterRoutes();
+
+   using ApiHandler = std::function<nlohmann::json(Database& db, const nlohmann::json& input)>;
+   using HttpHandler = std::function<void(const httplib::Request& req, httplib::Response& res)>;
+
+   void AddApiGetHandler(const std::string& endpoint, ApiHandler handler);
+   void AddApiPostHandler(const std::string& endpoint, ApiHandler handler);
+   void AddApiDeleteHandler(const std::string& endpoint, ApiHandler handler);
+
+   HttpHandler CreateHttpHandler(ApiHandler handler);
 
    // Request handlers
    void DbStatusRequest(const httplib::Request& req, httplib::Response& res);
 
-   void ListMachinesRequest(const httplib::Request& req, httplib::Response& res);
-   void CreateMachineRequest(const httplib::Request& req, httplib::Response& res);
-   void DeleteMachineRequest(const httplib::Request& req, httplib::Response& res);
-   void ListHardwareConfigsRequest(const httplib::Request& req, httplib::Response& res);
-   void CreateHardwareConfigRequest(const httplib::Request& req, httplib::Response& res);
    void DeleteHardwareConfigRequest(const httplib::Request& req, httplib::Response& res);
    void ListSoftwareEnvironmentsRequest(const httplib::Request& req, httplib::Response& res);
    void CreateSoftwareEnvironmentRequest(const httplib::Request& req, httplib::Response& res);
@@ -67,16 +56,13 @@ private:
    void AddFullMachineRequest(const httplib::Request& req, httplib::Response& res);
 
    // Helpers
-   void ListEntitiesHttp(Database& db, Server::EntityDescriptor& entity, httplib::Response& res);
-   nlohmann::json ListEntities(Database& db, Server::EntityDescriptor& entity);
-
-   void InsertEntityHttp(Database& db, const Server::EntityDescriptor& entity, const httplib::Request& req, httplib::Response& res);
-   std::optional<std::string> InsertEntity(Database& db, const Server::EntityDescriptor& entity, const nlohmann::json& input);
+   void InsertEntityHttp(Database& db, const EntityCreateDescriptor& entity, const httplib::Request& req, httplib::Response& res);
+   std::optional<std::string> InsertEntity(Database& db, const EntityCreateDescriptor& entity, const nlohmann::json& input);
 
    void DeleteEntityHttp(const httplib::Request& req, httplib::Response& res, const std::string& table);
    std::optional<std::string> DeleteEntityById(const std::string& table, int id, int& affectedRows);
 
-   std::string BuildSqlInsertQuery(const Server::EntityDescriptor& entity);
+   std::string BuildSqlInsertQuery(const EntityCreateDescriptor& entity);
 
    void SetHttpResponse(httplib::Response& res, const ErrorList& errors);
    void SetHttpResponse(httplib::Response& res, const int httpStatusCode, const std::string& message);

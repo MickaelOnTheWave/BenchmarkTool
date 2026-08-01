@@ -6,6 +6,10 @@
 #include "EntityValidators.h"
 #include "FileFormatDetector.h"
 #include "Normalizer.h"
+#include "requests/AddFullMachineRequest.h"
+#include "requests/HardwareConfigRequests.h"
+#include "requests/MachineRequests.h"
+#include "requests/SoftwareEnvironmentRequests.h"
 #include "requests/SystemInfoRequest.h"
 #include "ThreeDMarkImporter.h"
 
@@ -51,11 +55,6 @@ namespace
       json response;
       response["status"] = "ok";
       res.set_content(response.dump(), "application/json");
-   }
-
-   bool IsForeignKeyConstraintError(const std::string& message)
-   {
-      return message.find("FOREIGN KEY constraint failed") != std::string::npos;
    }
 
    bool TryFormatNotNullConstraintError(const std::string& sqliteMessage, std::string& formattedMessage)
@@ -119,49 +118,49 @@ void Server::RegisterRoutes()
       DbStatusRequest(req, res);
    });
 
-   server.Get("/api/get-local-system-info", [this](const httplib::Request& req, httplib::Response& res)
+   AddApiGetHandler("/api/get-local-system-info", [](Database& db, const nlohmann::json& input)
    {
-      const json j = SystemInfoRequest::CreateJsonResponse();
-      res.set_content(j.dump(3), "application/json");
+      return SystemInfoRequest::CreateJsonResponse();
    });
 
-   server.Get("/api/list-machines", [this](const httplib::Request& req, httplib::Response& res)
+   AddApiGetHandler("/api/list-machines", [](Database& db, const nlohmann::json& input)
    {
-      ListMachinesRequest(req, res);
+      return MachineRequests::List(db, input);
    });
-   server.Post("/api/create-machine", [this](const httplib::Request& req, httplib::Response& res)
+   AddApiPostHandler("/api/create-machine", [](Database& db, const nlohmann::json& input)
    {
-      CreateMachineRequest(req, res);
+      return MachineRequests::Create(db, input);
    });
-   server.Delete(R"(/api/delete-machine/(\d+))", [this](const httplib::Request& req, httplib::Response& res)
+   AddApiDeleteHandler("/api/delete-machine", [](Database& db, const nlohmann::json& input)
    {
-      DeleteMachineRequest(req, res);
-   });
-
-   server.Get("/api/list-hardware-configs", [this](const httplib::Request& req, httplib::Response& res)
-   {
-      ListHardwareConfigsRequest(req, res);
-   });
-   server.Post("/api/create-hardware-config", [this](const httplib::Request& req, httplib::Response& res)
-   {
-      CreateHardwareConfigRequest(req, res);
-   });
-   server.Delete(R"(/api/delete-hardware-config/(\d+))", [this](const httplib::Request& req, httplib::Response& res)
-   {
-      DeleteHardwareConfigRequest(req, res);
+      return MachineRequests::Delete(db, input);
    });
 
-   server.Get("/api/list-software-environments", [this](const httplib::Request& req, httplib::Response& res)
+   AddApiGetHandler("/api/list-hardware-configs", [](Database& db, const nlohmann::json& input)
    {
-      ListSoftwareEnvironmentsRequest(req, res);
+     return HardwareConfigRequests::List(db, input);
    });
-   server.Post("/api/create-software-environment", [this](const httplib::Request& req, httplib::Response& res)
+   AddApiPostHandler("/api/create-hardware-config", [](Database& db, const nlohmann::json& input)
    {
-      CreateSoftwareEnvironmentRequest(req, res);
+      return HardwareConfigRequests::Create(db, input);
    });
-   server.Delete(R"(/api/delete-software-environment/(\d+))", [this](const httplib::Request& req, httplib::Response& res)
+   AddApiDeleteHandler("/api/delete-hardware-config", [](Database& db, const nlohmann::json& input)
    {
-      DeleteSoftwareEnvironmentRequest(req, res);
+      return HardwareConfigRequests::Delete(db, input);
+   });
+
+
+   AddApiGetHandler("/api/list-software-environments", [](Database& db, const nlohmann::json& input)
+   {
+      return SoftwareEnvironmentRequests::List(db, input);
+   });
+   AddApiPostHandler("/api/create-software-environment", [](Database& db, const nlohmann::json& input)
+   {
+      return SoftwareEnvironmentRequests::Create(db, input);
+   });
+   AddApiDeleteHandler("/api/delete-software-environment", [](Database& db, const nlohmann::json& input)
+   {
+      return SoftwareEnvironmentRequests::Delete(db, input);
    });
 
    server.Get("/api/list-software-configs", [this](const httplib::Request& req, httplib::Response& res)
@@ -231,15 +230,51 @@ void Server::RegisterRoutes()
       ExecuteImportPlan(req, res);
    });
 
-   server.Post("/api/add-full-machine", [this](const httplib::Request& req, httplib::Response& res)
+   AddApiPostHandler("/api/add-full-machine", [](Database& db, const nlohmann::json& input)
    {
-      AddFullMachineRequest(req, res);
+      return AddFullMachineRequest::CreateJsonResponse(db, input);
    });
 
    server.Post("/api/testing/reset", [this](const httplib::Request& req, httplib::Response& res)
    {
       ResetDatabaseRequest(req, res);
    });
+}
+
+void Server::AddApiGetHandler(const std::string &endpoint, ApiHandler handler)
+{
+   server.Get(endpoint, CreateHttpHandler(handler));
+}
+
+void Server::AddApiPostHandler(const std::string &endpoint, ApiHandler handler)
+{
+   server.Post(endpoint, CreateHttpHandler(handler));
+}
+
+void Server::AddApiDeleteHandler(const std::string &endpoint, ApiHandler handler)
+{
+   server.Delete(endpoint, CreateHttpHandler(handler));
+}
+
+Server::HttpHandler Server::CreateHttpHandler(ApiHandler handler)
+{
+   auto httpHandler = [this, handler](const httplib::Request& req, httplib::Response& res)
+   {
+      json input;
+      try
+      {
+         input = json::parse(req.body);
+      }
+      catch (const std::exception&)
+      {
+         SetHttpResponse400(res, "Invalid JSON input");
+         return;
+      }
+
+      const json j = handler(db, input);
+      res.set_content(j.dump(3), "application/json");
+   };
+   return httpHandler;
 }
 
 void Server::DbStatusRequest(const httplib::Request&, httplib::Response& res)
@@ -259,105 +294,9 @@ void Server::DbStatusRequest(const httplib::Request&, httplib::Response& res)
    res.set_content(j.dump(3), "application/json");
 }
 
-void Server::ListMachinesRequest(const httplib::Request&, httplib::Response& res)
-{
-   EntityDescriptor entity;
-   entity.rootField = "machines";
-   entity.table = "Machine";
-   entity.fields = "Id, Name, Cpu, Gpu, RamGb, Motherboard";
-   entity.selectMapper = [](sqlite3_stmt* sqlStatement, json& jsonObj)
-   {
-      jsonObj["cpu"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 2));
-      jsonObj["gpu"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 3));
-      jsonObj["ramGb"] = sqlite3_column_int(sqlStatement, 4);
-      jsonObj["motherboard"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 5));
-   };
-   ListEntitiesHttp(db, entity, res);
-}
-
-void Server::CreateMachineRequest(const httplib::Request& req, httplib::Response& res)
-{
-   EntityDescriptor machineEntity;
-   machineEntity.table = "Machine";
-   machineEntity.insertFields = {
-      "Name", "Cpu", "Gpu", "RamGb", "Motherboard"
-   };
-   machineEntity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
-   {
-      sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_text(stmt, 2, j.value("cpu", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_text(stmt, 3, j.value("gpu", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_int(stmt, 4, j.value("ramGb", 0));
-      sqlite3_bind_text(stmt, 5, j.value("motherboard", "").c_str(), -1, SQLITE_TRANSIENT);
-   };
-   machineEntity.validator = ValidateMachine;
-
-   InsertEntityHttp(db, machineEntity, req, res);
-}
-
-void Server::DeleteMachineRequest(const httplib::Request& req, httplib::Response& res)
-{
-   DeleteEntityHttp(req, res, "Machine");
-}
-
-void Server::ListHardwareConfigsRequest(const httplib::Request&, httplib::Response& res)
-{
-   EntityDescriptor entity;
-   entity.rootField = "configs";
-   entity.table = "HardwareConfiguration";
-   entity.fields = "Id, Name, MachineId, CpuFreqGhz, GpuFreqMhz, RamFreqMhz, Settings";
-   entity.selectMapper = [](sqlite3_stmt* sqlStatement, json& jsonObj)
-   {
-      jsonObj["machineId"] = sqlite3_column_int(sqlStatement, 2);
-      jsonObj["cpuFreqGhz"] = sqlite3_column_double(sqlStatement, 3);
-      jsonObj["gpuFreqMhz"] = sqlite3_column_double(sqlStatement, 4);
-      jsonObj["ramFreqMhz"] = sqlite3_column_double(sqlStatement, 5);
-
-       const char* settingsText =
-         reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 6));
-
-      if (settingsText)
-      {
-         json parsed = json::parse(settingsText, nullptr, false);
-         jsonObj["settings"] = parsed.is_discarded() ? json::object() : parsed;
-      }
-      else
-         jsonObj["settings"] = json::object();
-   };
-   ListEntitiesHttp(db, entity, res);
-}
-
-void Server::CreateHardwareConfigRequest(const httplib::Request& req, httplib::Response& res)
-{
-   EntityDescriptor machineEntity;
-   machineEntity.table = "HardwareConfiguration";
-   machineEntity.insertFields = {
-      "Name", "MachineId", "CpuFreqGhz", "GpuFreqMhz", "RamFreqMhz", "Settings"
-   };
-
-   machineEntity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
-   {
-      sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_int(stmt, 2, j.value("machineId", -1));
-      sqlite3_bind_double(stmt, 3, j.value("cpuFreqGhz", 0.0));
-      sqlite3_bind_double(stmt, 4, j.value("gpuFreqMhz", 0.0));
-      sqlite3_bind_double(stmt, 5, j.value("ramFreqMhz", 0.0));
-      sqlite3_bind_text(stmt, 6, j.value("settings", "").c_str(), -1, SQLITE_TRANSIENT);
-   };
-
-   machineEntity.validator = ValidateHardwareConfiguration;
-
-   InsertEntityHttp(db, machineEntity, req, res);
-}
-
-void Server::DeleteHardwareConfigRequest(const httplib::Request& req, httplib::Response& res)
-{
-   DeleteEntityHttp(req, res, "HardwareConfiguration");
-}
-
 void Server::ListSoftwareEnvironmentsRequest(const httplib::Request&, httplib::Response& res)
 {
-   EntityDescriptor entity;
+   EntityCreateDescriptor entity;
 
    entity.rootField = "softwareEnvironments";
    entity.table = "SoftwareEnvironment";
@@ -1182,50 +1121,7 @@ void Server::ExecuteImportPlan(const httplib::Request& req, httplib::Response& r
    res.set_content(response.dump(), "application/json");
 }
 
-void Server::ListEntitiesHttp(Database& db, Server::EntityDescriptor& entity, httplib::Response& res)
-{
-   json returnedJson = ListEntities(db, entity);
-   if (returnedJson.contains("error"))
-      res.status = 500;
-   res.set_content(returnedJson.dump(3), "application/json");
-}
-
-json Server::ListEntities(Database& db, Server::EntityDescriptor& entity)
-{
-   json returnedJson;
-   returnedJson[entity.rootField] = json::array();
-
-   sqlite3_stmt* sqlStatement = nullptr;
-   const std::string selectCommand = "SELECT " + entity.fields + " FROM " + entity.table + ";";
-
-   if (sqlite3_prepare_v2(db.GetHandle(), selectCommand.c_str(), -1, &sqlStatement, nullptr) != SQLITE_OK)
-   {
-      json jsonError;
-      jsonError["error"] = sqlite3_errmsg(db.GetHandle());
-      return jsonError;
-   }
-
-   while (sqlite3_step(sqlStatement) == SQLITE_ROW)
-   {
-      json jsonEntry;
-
-      // Contract:
-      // column 0 = id
-      // column 1 = name
-      assert(sqlite3_column_count(sqlStatement) >= 2);
-
-      jsonEntry["id"] = sqlite3_column_int(sqlStatement, 0);
-      jsonEntry["name"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 1));
-      entity.selectMapper(sqlStatement, jsonEntry);
-
-      returnedJson[entity.rootField].push_back(jsonEntry);
-   }
-
-   sqlite3_finalize(sqlStatement);
-   return returnedJson;
-}
-
-void Server::InsertEntityHttp(Database& db, const Server::EntityDescriptor& entity, const httplib::Request& req, httplib::Response& res)
+void Server::InsertEntityHttp(Database& db, const EntityCreateDescriptor& entity, const httplib::Request& req, httplib::Response& res)
 {
    json response;
    json entityJsonData = json::parse(req.body, nullptr, false);
@@ -1386,169 +1282,4 @@ void Server::SetHttpResponse(httplib::Response &res, const int httpStatusCode, c
 void Server::SetHttpResponse400(httplib::Response &res, const std::string &message)
 {
    SetHttpResponse(res, 400, message);
-}
-
-void Server::AddFullMachineRequest(const httplib::Request& req, httplib::Response& res)
-{
-   json input;
-   try
-   {
-      input = json::parse(req.body);
-   }
-   catch (const std::exception&)
-   {
-      SetHttpResponse400(res, "Invalid JSON input");
-      return;
-   }
-
-   // Start transaction
-   char* errMsg = nullptr;
-   if (sqlite3_exec(db.GetHandle(), "BEGIN TRANSACTION;", nullptr, nullptr, &errMsg) != SQLITE_OK)
-   {
-      const int httpStatusCode = 500;
-      SetHttpResponse(res, httpStatusCode, errMsg ? errMsg : "Failed to start transaction");
-      sqlite3_free(errMsg);
-      return;
-   }
-
-   json response;
-   int machineId = -1;
-   int hwConfigId = -1;
-   int swEnvId = -1;
-   int swConfigId = -1;
-
-   // Extract machine data
-   json machineData = input.value("machine", json::object());
-   machineData["name"] = machineData.value("name", "");
-   machineData["cpu"] = machineData.value("cpu", "");
-   machineData["gpu"] = machineData.value("gpu", "");
-   machineData["ramGb"] = machineData.value("ramGb", 0);
-   machineData["motherboard"] = machineData.value("motherboard", "");
-
-   // Create Machine
-   EntityDescriptor machineEntity;
-   machineEntity.table = "Machine";
-   machineEntity.insertFields = { "Name", "Cpu", "Gpu", "RamGb", "Motherboard" };
-   machineEntity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
-   {
-      sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_text(stmt, 2, j.value("cpu", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_text(stmt, 3, j.value("gpu", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_int(stmt, 4, j.value("ramGb", 0));
-      sqlite3_bind_text(stmt, 5, j.value("motherboard", "").c_str(), -1, SQLITE_TRANSIENT);
-   };
-
-   std::optional<std::string> result = InsertEntity(db, machineEntity, machineData);
-   if (result)
-   {
-      // Rollback on error
-      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
-      SetHttpResponse400(res, *result);
-      return;
-   }
-   machineId = db.GetLastInsertId();
-
-   // Extract and create HardwareConfiguration
-   json hwConfigData = input.value("hardwareConfig", json::object());
-   hwConfigData["machineId"] = machineId;
-   hwConfigData["name"] = hwConfigData.value("name", "Default");
-   hwConfigData["cpuFreqGhz"] = hwConfigData.value("cpuFreqGhz", 0.0);
-   hwConfigData["gpuFreqMhz"] = hwConfigData.value("gpuFreqMhz", 0.0);
-   hwConfigData["ramFreqMhz"] = hwConfigData.value("ramFreqMhz", 0.0);
-   hwConfigData["settings"] = hwConfigData.value("settings", "{}");
-
-   EntityDescriptor hwConfigEntity;
-   hwConfigEntity.table = "HardwareConfiguration";
-   hwConfigEntity.insertFields = { "Name", "MachineId", "CpuFreqGhz", "GpuFreqMhz", "RamFreqMhz", "Settings" };
-   hwConfigEntity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
-   {
-      sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_int(stmt, 2, j.value("machineId", -1));
-      sqlite3_bind_double(stmt, 3, j.value("cpuFreqGhz", 0.0));
-      sqlite3_bind_double(stmt, 4, j.value("gpuFreqMhz", 0.0));
-      sqlite3_bind_double(stmt, 5, j.value("ramFreqMhz", 0.0));
-      sqlite3_bind_text(stmt, 6, j.value("settings", "{}").c_str(), -1, SQLITE_TRANSIENT);
-   };
-
-   result = InsertEntity(db, hwConfigEntity, hwConfigData);
-   if (result)
-   {
-      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
-      SetHttpResponse400(res, *result);
-      return;
-   }
-   hwConfigId = db.GetLastInsertId();
-
-   // Extract and create SoftwareEnvironment
-   json swEnvData = input.value("softwareEnvironment", json::object());
-   swEnvData["name"] = swEnvData.value("name", "Default");
-   swEnvData["os"] = swEnvData.value("os", "");
-   swEnvData["osVersion"] = swEnvData.value("osVersion", "");
-   swEnvData["driverFamily"] = swEnvData.value("driverFamily", "");
-
-   EntityDescriptor swEnvEntity;
-   swEnvEntity.table = "SoftwareEnvironment";
-   swEnvEntity.insertFields = { "Name", "Os", "OsVersion", "DriverFamily" };
-   swEnvEntity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
-   {
-      sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_text(stmt, 2, j.value("os", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_text(stmt, 3, j.value("osVersion", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_text(stmt, 4, j.value("driverFamily", "").c_str(), -1, SQLITE_TRANSIENT);
-   };
-
-   result = InsertEntity(db, swEnvEntity, swEnvData);
-   if (result)
-   {
-      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
-      SetHttpResponse400(res, *result);
-      return;
-   }
-   swEnvId = db.GetLastInsertId();
-
-   // Extract and create SoftwareConfiguration
-   json swConfigData = input.value("softwareConfig", json::object());
-   swConfigData["softwareEnvironmentId"] = swEnvId;
-   swConfigData["name"] = swConfigData.value("name", "Default");
-   swConfigData["driverVersion"] = swConfigData.value("driverVersion", "");
-   swConfigData["mode"] = swConfigData.value("mode", "");
-   swConfigData["settings"] = swConfigData.value("settings", "{}");
-
-   EntityDescriptor swConfigEntity;
-   swConfigEntity.table = "SoftwareConfiguration";
-   swConfigEntity.insertFields = { "Name", "SoftwareEnvironmentId", "DriverVersion", "Mode", "Settings" };
-   swConfigEntity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
-   {
-      sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_int(stmt, 2, j.value("softwareEnvironmentId", -1));
-      sqlite3_bind_text(stmt, 3, j.value("driverVersion", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_text(stmt, 4, j.value("mode", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_text(stmt, 5, j.value("settings", "{}").c_str(), -1, SQLITE_TRANSIENT);
-   };
-
-   result = InsertEntity(db, swConfigEntity, swConfigData);
-   if (result)
-   {
-      sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
-      SetHttpResponse400(res, *result);
-      return;
-   }
-   swConfigId = db.GetLastInsertId();
-
-   // Commit transaction
-   if (sqlite3_exec(db.GetHandle(), "COMMIT;", nullptr, nullptr, &errMsg) != SQLITE_OK)
-   {
-      const int httpStatusCode = 500;
-      SetHttpResponse(res, httpStatusCode, errMsg ? errMsg : "Failed to commit transaction");
-      sqlite3_free(errMsg);
-      return;
-   }
-
-   response["status"] = "ok";
-   response["machineId"] = machineId;
-   response["hardwareConfigId"] = hwConfigId;
-   response["softwareEnvironmentId"] = swEnvId;
-   response["softwareConfigId"] = swConfigId;
-
-   res.set_content(response.dump(3), "application/json");
 }

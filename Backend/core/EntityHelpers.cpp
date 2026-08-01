@@ -25,6 +25,7 @@ EntityListDescriptor EntityHelpers::ListHardwareConfigs()
    EntityListDescriptor descriptor;
    descriptor.rootField = "configs";
    descriptor.table = "HardwareConfiguration";
+   descriptor.selectFields = "Id, MachineId, CpuFreqGhz, GpuFreqMhz, RamFreqMhz, Settings";
    descriptor.selectMapper = [](sqlite3_stmt* sqlStatement, json& jsonObj)
    {
       jsonObj["machineId"] = sqlite3_column_int(sqlStatement, 2);
@@ -42,6 +43,21 @@ EntityListDescriptor EntityHelpers::ListHardwareConfigs()
       }
       else
          jsonObj["settings"] = json::object();
+   };
+   return descriptor;
+}
+
+EntityListDescriptor EntityHelpers::ListSoftwareEnvironments()
+{
+   EntityListDescriptor descriptor;
+   descriptor.rootField = "softwareEnvironments";
+   descriptor.table = "SoftwareEnvironment";
+   descriptor.selectFields = "Id, Name, Os, OsVersion, DriverFamily";
+   descriptor.selectMapper = [](sqlite3_stmt* sqlStatement, json& jsonObj)
+   {
+      jsonObj["os"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 2));
+      jsonObj["osVersion"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 3));
+      jsonObj["driverFamily"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 4));
    };
    return descriptor;
 }

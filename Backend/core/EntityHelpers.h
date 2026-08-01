@@ -27,10 +27,13 @@ class EntityHelpers
 public:
    static EntityListDescriptor ListMachines();
    static EntityListDescriptor ListHardwareConfigs();
+   static EntityListDescriptor ListSoftwareEnvironments();
 
    static EntityCreateDescriptor CreateMachine(const nlohmann::json& data);
    static EntityCreateDescriptor CreateHardwareConfig(const nlohmann::json& data);
    static EntityCreateDescriptor CreateSoftwareEnvironment(const nlohmann::json& data);
+
+
    static EntityCreateDescriptor CreateSoftwareConfig(const nlohmann::json& data);
    static EntityCreateDescriptor CreateTest(const nlohmann::json& data);
 };
