@@ -1,6 +1,7 @@
 #ifndef DATABASE_H
 #define DATABASE_H
 
+#include <expected>
 #include <optional>
 #include <sqlite3.h>
 #include <string>
@@ -13,6 +14,7 @@ public:
 
    sqlite3* GetHandle() const;
    std::optional<std::string> Execute(const std::string& sql);
+   std::expected<int, std::string> Delete(const std::string& table, const int id);
 
    bool QueryInt(const std::string& sql, int& outValue);
 

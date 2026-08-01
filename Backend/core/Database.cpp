@@ -39,6 +39,28 @@ std::optional<std::string> Database::Execute(const std::string& sql)
    return std::nullopt;
 }
 
+std::expected<int, std::string> Database::Delete(const std::string &table, const int id)
+{
+   const std::string sql = "DELETE FROM " + table + " WHERE Id = ?;";
+   sqlite3_stmt* stmt = nullptr;
+
+   if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+      return std::unexpected(sqlite3_errmsg(db));
+
+   sqlite3_bind_int(stmt, 1, id);
+
+   if (sqlite3_step(stmt) != SQLITE_DONE)
+   {
+      std::string err = sqlite3_errmsg(db);
+      sqlite3_finalize(stmt);
+      return std::unexpected(err);
+   }
+
+   const int affectedRows = sqlite3_changes(db);
+   sqlite3_finalize(stmt);
+   return affectedRows;
+}
+
 bool Database::QueryInt(const std::string& sql, int& outValue)
 {
    sqlite3_stmt* stmt = nullptr;

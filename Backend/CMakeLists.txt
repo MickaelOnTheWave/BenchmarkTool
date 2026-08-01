@@ -28,6 +28,9 @@ add_library(Core
     core/Utils.h core/Utils.cpp
     core/LinuxSystemInfo.h core/LinuxSystemInfo.cpp
     core/ISystemInfo.h
+    core/Entities.h
+    core/EntityHelpers.h core/EntityHelpers.cpp
+    core/DatabaseHelpers.h core/DatabaseHelpers.cpp
 )
 
 target_include_directories(Core PUBLIC
@@ -46,6 +49,9 @@ add_executable(Backend
    src/main.cpp
    src/Server.h src/Server.cpp
    src/requests/SystemInfoRequest.h src/requests/SystemInfoRequest.cpp
+   src/requests/AddFullMachineRequest.h src/requests/AddFullMachineRequest.cpp
+   src/requests/MachineRequests.h src/requests/MachineRequests.cpp
+   src/requests/HardwareConfigRequests.h src/requests/HardwareConfigRequests.cpp
 )
 
 target_link_libraries(Backend PRIVATE
