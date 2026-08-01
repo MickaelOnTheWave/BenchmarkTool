@@ -9,11 +9,11 @@
 #include "requests/AddFullMachineRequest.h"
 #include "requests/HardwareConfigRequestHandler.h"
 #include "requests/MachineRequestHandler.h"
-#include "requests/SoftwareConfigRequests.h"
-#include "requests/SoftwareEnvironmentRequests.h"
+#include "requests/SoftwareConfigRequestHandler.h"
+#include "requests/SoftwareEnvironmentRequestHandler.h"
 #include "requests/SystemInfoRequest.h"
-#include "requests/TestConfigRequests.h"
-#include "requests/TestRequests.h"
+#include "requests/TestConfigRequestHandler.h"
+#include "requests/TestRequestHandler.h"
 #include "ThreeDMarkImporter.h"
 
 using json = nlohmann::json;
@@ -128,59 +128,10 @@ void Server::RegisterRoutes()
 
    AddCrudTypeHandlers("machine", new MachineRequestHandler());
    AddCrudTypeHandlers("hardware-config", new HardwareConfigRequestHandler());
-
-
-   AddApiGetHandler("/api/list-software-environments", [](Database& db, const nlohmann::json& input)
-   {
-      return SoftwareEnvironmentRequests::List(db, input);
-   });
-   AddApiPostHandler("/api/create-software-environment", [](Database& db, const nlohmann::json& input)
-   {
-      return SoftwareEnvironmentRequests::Create(db, input);
-   });
-   AddApiDeleteHandler("/api/delete-software-environment", [](Database& db, const nlohmann::json& input)
-   {
-      return SoftwareEnvironmentRequests::Delete(db, input);
-   });
-
-   AddApiGetHandler("/api/list-software-configs", [](Database& db, const nlohmann::json& input)
-   {
-      return SoftwareConfigRequests::List(db, input);
-   });
-   AddApiPostHandler("/api/create-software-config", [](Database& db, const nlohmann::json& input)
-   {
-      return SoftwareConfigRequests::Create(db, input);
-   });
-   AddApiDeleteHandler("/api/delete-software-config", [](Database& db, const nlohmann::json& input)
-   {
-      return SoftwareConfigRequests::Delete(db, input);
-   });
-
-   AddApiGetHandler("/api/list-tests", [](Database& db, const nlohmann::json& input)
-   {
-      return TestRequests::List(db, input);
-   });
-   AddApiPostHandler("/api/create-test", [](Database& db, const nlohmann::json& input)
-   {
-      return TestRequests::Create(db, input);
-   });
-   AddApiDeleteHandler("/api/delete-test", [](Database& db, const nlohmann::json& input)
-   {
-      return TestRequests::Delete(db, input);
-   });
-
-   AddApiGetHandler("/api/list-test-configs", [](Database& db, const nlohmann::json& input)
-   {
-      return TestConfigRequests::List(db, input);
-   });
-   AddApiPostHandler("/api/create-test-config", [](Database& db, const nlohmann::json& input)
-   {
-      return TestConfigRequests::Create(db, input);
-   });
-   AddApiDeleteHandler("/api/delete-test-config", [](Database& db, const nlohmann::json& input)
-   {
-      return TestConfigRequests::Delete(db, input);
-   });
+   AddCrudTypeHandlers("software-environment", new SoftwareEnvironmentRequestHandler());
+   AddCrudTypeHandlers("software-config", new SoftwareConfigRequestHandler());
+   AddCrudTypeHandlers("test", new TestRequestHandler());
+   AddCrudTypeHandlers("test-config", new TestConfigRequestHandler());
 
    server.Get("/api/list-origins", [this](const httplib::Request& req, httplib::Response& res)
    {
