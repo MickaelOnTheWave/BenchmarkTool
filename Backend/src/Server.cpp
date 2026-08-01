@@ -7,7 +7,7 @@
 #include "FileFormatDetector.h"
 #include "Normalizer.h"
 #include "requests/AddFullMachineRequest.h"
-#include "requests/HardwareConfigRequests.h"
+#include "requests/HardwareConfigRequestHandler.h"
 #include "requests/MachineRequestHandler.h"
 #include "requests/SoftwareConfigRequests.h"
 #include "requests/SoftwareEnvironmentRequests.h"
@@ -127,19 +127,7 @@ void Server::RegisterRoutes()
    });
 
    AddCrudTypeHandlers("machine", new MachineRequestHandler());
-
-   AddApiGetHandler("/api/list-hardware-configs", [](Database& db, const nlohmann::json& input)
-   {
-     return HardwareConfigRequests::List(db, input);
-   });
-   AddApiPostHandler("/api/create-hardware-config", [](Database& db, const nlohmann::json& input)
-   {
-      return HardwareConfigRequests::Create(db, input);
-   });
-   AddApiDeleteHandler("/api/delete-hardware-config", [](Database& db, const nlohmann::json& input)
-   {
-      return HardwareConfigRequests::Delete(db, input);
-   });
+   AddCrudTypeHandlers("hardware-config", new HardwareConfigRequestHandler());
 
 
    AddApiGetHandler("/api/list-software-environments", [](Database& db, const nlohmann::json& input)
