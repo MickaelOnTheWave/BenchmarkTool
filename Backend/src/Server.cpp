@@ -9,6 +9,7 @@
 #include "requests/AddFullMachineRequest.h"
 #include "requests/HardwareConfigRequests.h"
 #include "requests/MachineRequests.h"
+#include "requests/SoftwareConfigRequests.h"
 #include "requests/SoftwareEnvironmentRequests.h"
 #include "requests/SystemInfoRequest.h"
 #include "ThreeDMarkImporter.h"
@@ -163,17 +164,17 @@ void Server::RegisterRoutes()
       return SoftwareEnvironmentRequests::Delete(db, input);
    });
 
-   server.Get("/api/list-software-configs", [this](const httplib::Request& req, httplib::Response& res)
+   AddApiGetHandler("/api/list-software-configs", [](Database& db, const nlohmann::json& input)
    {
-      ListSoftwareConfigsRequest(req, res);
+      return SoftwareConfigRequests::List(db, input);
    });
-   server.Post("/api/create-software-config", [this](const httplib::Request& req, httplib::Response& res)
+   AddApiPostHandler("/api/create-software-config", [](Database& db, const nlohmann::json& input)
    {
-      CreateSoftwareConfigRequest(req, res);
+      return SoftwareConfigRequests::Create(db, input);
    });
-   server.Delete(R"(/api/delete-software-config/(\d+))", [this](const httplib::Request& req, httplib::Response& res)
+   AddApiDeleteHandler("/api/delete-software-config", [](Database& db, const nlohmann::json& input)
    {
-      DeleteSoftwareConfigRequest(req, res);
+      return SoftwareConfigRequests::Delete(db, input);
    });
 
    server.Get("/api/list-tests", [this](const httplib::Request& req, httplib::Response& res)
@@ -294,54 +295,9 @@ void Server::DbStatusRequest(const httplib::Request&, httplib::Response& res)
    res.set_content(j.dump(3), "application/json");
 }
 
-void Server::ListSoftwareEnvironmentsRequest(const httplib::Request&, httplib::Response& res)
-{
-   EntityCreateDescriptor entity;
-
-   entity.rootField = "softwareEnvironments";
-   entity.table = "SoftwareEnvironment";
-   entity.fields = "Id, Name, Os, OsVersion, DriverFamily";
-
-   entity.selectMapper = [](sqlite3_stmt* stmt, json& obj)
-   {
-      obj["os"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-      obj["osVersion"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
-      obj["driverFamily"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
-   };
-
-   ListEntitiesHttp(db, entity, res);
-}
-
-void Server::CreateSoftwareEnvironmentRequest(const httplib::Request& req, httplib::Response& res)
-{
-   EntityDescriptor entity;
-   entity.table = "SoftwareEnvironment";
-   entity.insertFields = {
-      "Name",
-      "Os",
-      "OsVersion",
-      "DriverFamily"
-   };
-   entity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
-   {
-      sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_text(stmt, 2, j.value("os", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_text(stmt, 3, j.value("osVersion", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_text(stmt, 4, j.value("driverFamily", "").c_str(), -1, SQLITE_TRANSIENT);
-   };
-   entity.validator = ValidateSoftwareEnvironment;
-
-   InsertEntityHttp(db, entity, req, res);
-}
-
-void Server::DeleteSoftwareEnvironmentRequest(const httplib::Request& req, httplib::Response& res)
-{
-   DeleteEntityHttp(req, res, "SoftwareEnvironment");
-}
-
 void Server::ListSoftwareConfigsRequest(const httplib::Request&, httplib::Response& res)
 {
-   EntityDescriptor entity;
+   EntityCreateDescriptor entity;
 
    entity.rootField = "softwareConfigurations";
    entity.table = "SoftwareConfiguration";

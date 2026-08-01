@@ -53,6 +53,7 @@ add_executable(Backend
    src/requests/MachineRequests.h src/requests/MachineRequests.cpp
    src/requests/HardwareConfigRequests.h src/requests/HardwareConfigRequests.cpp
    src/requests/SoftwareEnvironmentRequests.h src/requests/SoftwareEnvironmentRequests.cpp
+   src/requests/SoftwareConfigRequests.h src/requests/SoftwareConfigRequests.cpp
 )
 
 target_link_libraries(Backend PRIVATE

@@ -28,6 +28,7 @@ public:
    static EntityListDescriptor ListMachines();
    static EntityListDescriptor ListHardwareConfigs();
    static EntityListDescriptor ListSoftwareEnvironments();
+   static EntityListDescriptor ListSoftwareConfigs();
 
    static EntityCreateDescriptor CreateMachine(const nlohmann::json& data);
    static EntityCreateDescriptor CreateHardwareConfig(const nlohmann::json& data);

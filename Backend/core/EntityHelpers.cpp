@@ -62,6 +62,32 @@ EntityListDescriptor EntityHelpers::ListSoftwareEnvironments()
    return descriptor;
 }
 
+EntityListDescriptor EntityHelpers::ListSoftwareConfigs()
+{
+   EntityListDescriptor descriptor;
+   descriptor.rootField = "softwareConfigurations";
+   descriptor.table = "SoftwareConfiguration";
+   descriptor.selectFields = "Id, Name, SoftwareEnvironmentId, DriverVersion, Mode, Settings";
+   descriptor.selectMapper = [](sqlite3_stmt* sqlStatement, json& jsonObj)
+   {
+      jsonObj["softwareEnvironmentId"] = sqlite3_column_int(sqlStatement, 2);
+      jsonObj["driverVersion"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 3));
+      jsonObj["mode"] = reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 4));
+
+      const char* settingsText =
+         reinterpret_cast<const char*>(sqlite3_column_text(sqlStatement, 5));
+
+      if (settingsText)
+      {
+         json parsed = json::parse(settingsText, nullptr, false);
+         jsonObj["settings"] = parsed.is_discarded() ? json::object() : parsed;
+      }
+      else
+         jsonObj["settings"] = json::object();
+   };
+   return descriptor;
+}
+
 EntityCreateDescriptor EntityHelpers::CreateMachine(const json &data)
 {
    EntityCreateDescriptor descriptor;
