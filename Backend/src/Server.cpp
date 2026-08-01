@@ -297,96 +297,9 @@ void Server::DbStatusRequest(const httplib::Request&, httplib::Response& res)
    res.set_content(j.dump(3), "application/json");
 }
 
-void Server::ListTestsRequest(const httplib::Request&, httplib::Response& res)
-{
-   EntityCreateDescriptor entity;
-
-   entity.rootField = "tests";
-   entity.table = "Test";
-   entity.fields = "Id, Name, Description, IconPath";
-
-   entity.selectMapper = [](sqlite3_stmt* stmt, json& obj)
-   {
-      obj["description"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-      obj["iconPath"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
-   };
-
-   ListEntitiesHttp(db, entity, res);
-}
-
-void Server::CreateTestRequest(const httplib::Request& req, httplib::Response& res)
-{
-   EntityDescriptor entity;
-   entity.table = "Test";
-   entity.insertFields = {
-      "Name",
-      "Description",
-      "IconPath"
-   };
-
-   entity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
-   {
-      sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_text(stmt, 2, j.value("description", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_text(stmt, 3, j.value("iconPath", "").c_str(), -1, SQLITE_TRANSIENT);
-   };
-
-   //entity.validator = ValidateTest;
-
-   InsertEntityHttp(db, entity, req, res);
-}
-
-void Server::DeleteTestRequest(const httplib::Request& req, httplib::Response& res)
-{
-   DeleteEntityHttp(req, res, "Test");
-}
-
-void Server::ListTestConfigsRequest(const httplib::Request&, httplib::Response& res)
-{
-   EntityDescriptor entity;
-   entity.rootField = "testConfigurations";
-   entity.table = "TestConfiguration";
-   entity.fields = "Id, Name, TestId, Settings";
-
-   entity.selectMapper = [](sqlite3_stmt* stmt, json& obj)
-   {
-      obj["testId"] = sqlite3_column_int(stmt, 2);
-      obj["settings"] = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
-   };
-
-   ListEntitiesHttp(db, entity, res);
-}
-
-void Server::CreateTestConfigRequest(const httplib::Request& req, httplib::Response& res)
-{
-   EntityDescriptor entity;
-   entity.table = "TestConfiguration";
-   entity.insertFields = {
-      "Name",
-      "TestId",
-      "Settings"
-   };
-
-   entity.insertBinder = [](sqlite3_stmt* stmt, const json& j)
-   {
-      sqlite3_bind_text(stmt, 1, j.value("name", "").c_str(), -1, SQLITE_TRANSIENT);
-      sqlite3_bind_int(stmt, 2, j.value("testId", 0));
-      sqlite3_bind_text(stmt, 3, j.value("settings", "{}").c_str(), -1, SQLITE_TRANSIENT);
-   };
-
-   //entity.validator = ValidateTestConfig;
-
-   InsertEntityHttp(db, entity, req, res);
-}
-
-void Server::DeleteTestConfigRequest(const httplib::Request& req, httplib::Response& res)
-{
-   DeleteEntityHttp(req, res, "TestConfiguration");
-}
-
 void Server::ListOriginsRequest(const httplib::Request&, httplib::Response& res)
 {
-   EntityDescriptor entity;
+   EntityCreateDescriptor entity;
 
    entity.rootField = "origins";
    entity.table = "Origin";
