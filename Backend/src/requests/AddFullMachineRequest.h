@@ -11,6 +11,7 @@ public:
    static nlohmann::json CreateJsonResponse(Database& db, const nlohmann::json &input);
 
 private:
+   static nlohmann::json HandleError(Database& db, const nlohmann::json &input);
 };
 
 #endif // ADDFULLMACHINEREQUEST_H

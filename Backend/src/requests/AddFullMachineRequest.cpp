@@ -28,7 +28,7 @@ json AddFullMachineRequest::CreateJsonResponse(Database &db, const json &input)
    const EntityCreateDescriptor machine = EntityHelpers::CreateMachine(jsonData);
    json result = DatabaseHelpers::InsertEntity(machine, jsonData, db);
    if (result["status"] == "error")
-      return result;
+      return HandleError(db, result);
    const int machineId = result["id"];
 
    jsonData = input.value("hardwareConfig", json::object());
@@ -36,14 +36,14 @@ json AddFullMachineRequest::CreateJsonResponse(Database &db, const json &input)
    const EntityCreateDescriptor hardwareConfig = EntityHelpers::CreateHardwareConfig(jsonData);
    result = DatabaseHelpers::InsertEntity(hardwareConfig, jsonData, db);
    if (result["status"] == "error")
-      return result;
+      return HandleError(db, result);
    const int hwConfigId = result["id"];
 
    jsonData = input.value("softwareEnvironment", json::object());
    const EntityCreateDescriptor softwareEnv = EntityHelpers::CreateSoftwareEnvironment(jsonData);
    result = DatabaseHelpers::InsertEntity(softwareEnv, jsonData, db);
    if (result["status"] == "error")
-      return result;
+      return HandleError(db, result);
    const int swEnvId = result["id"];
 
    jsonData = input.value("softwareConfig", json::object());
@@ -51,7 +51,7 @@ json AddFullMachineRequest::CreateJsonResponse(Database &db, const json &input)
    const EntityCreateDescriptor softwareConfig = EntityHelpers::CreateSoftwareConfig(jsonData);
    result = DatabaseHelpers::InsertEntity(softwareConfig, jsonData, db);
    if (result["status"] == "error")
-      return result;
+      return HandleError(db, result);
    const int swConfigId = result["id"];
 
    output["status"] = "ok";
@@ -59,5 +59,21 @@ json AddFullMachineRequest::CreateJsonResponse(Database &db, const json &input)
    output["hardwareConfigId"] = hwConfigId;
    output["softwareEnvironmentId"] = swEnvId;
    output["softwareConfigId"] = swConfigId;
+
+   // Commit transaction
+   if (sqlite3_exec(db.GetHandle(), "COMMIT;", nullptr, nullptr, &errMsg) != SQLITE_OK)
+   {
+      output["status"] = "error";
+      output["error"]["message"] = errMsg ? errMsg : "Failed to commit";
+      sqlite3_free(errMsg);
+      return output;
+   }
+
    return output;
+}
+
+nlohmann::json AddFullMachineRequest::HandleError(Database &db, const nlohmann::json &input)
+{
+   sqlite3_exec(db.GetHandle(), "ROLLBACK;", nullptr, nullptr, nullptr);
+   return input;
 }

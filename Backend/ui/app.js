@@ -589,7 +589,6 @@ function closeMachineDialog()
 
 async function addThisMachine()
 {
-    alert("Entering AddThisMachine"));
     const response = await fetch("/api/get-local-system-info");
     const systemInfo = await response.json();
 
@@ -686,7 +685,16 @@ async function submitAddFullMachine()
         closeAddFullMachineDialog();
         loadMachines();
     } else {
-        alert("Failed to create machine: " + (result.message || "Unknown error"));
+        let message = "Unknown error";
+        if (result.error) {
+            message = result.error.message || "Unknown error";
+            if (result.error.data && result.error.data.length > 0) {
+                message += ":\n" + result.error.data.join("\n");
+            }
+        } else if (result.message) {
+            message = result.message;
+        }
+        alert("Failed to create machine: " + message);
     }
 }
 
