@@ -29,7 +29,11 @@ private:
    std::string FindGpuName(const std::vector<std::string>& glxInfoData) const;
    int FindVramQuantity(const std::vector<std::string>& glxInfoData) const;
 
+   int FindRamFrequencyFromDmiDecode() const;
+   std::string FindFromTag(const std::string& tag, const std::string& line) const;
+
    std::vector<int> GetNvidiaSmiValues() const;
+   int GetGpuMinFrequencyFromSysfs() const;
    std::string GetBiosFileInfo(const std::string& filename) const;
    std::string GetProperty(const std::string& propertyName, const std::vector<std::string>& lines) const;
 

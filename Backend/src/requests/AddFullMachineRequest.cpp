@@ -2,7 +2,6 @@
 
 #include <sqlite3.h>
 
-#include "MachineRequestHandler.h"
 #include "DatabaseHelpers.h"
 #include "EntityHelpers.h"
 

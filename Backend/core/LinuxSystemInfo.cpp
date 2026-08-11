@@ -58,6 +58,7 @@ GpuInfo LinuxSystemInfo::GetGpu()
    }
    else
    {
+      info.minFrequencyMhz = GetGpuMinFrequencyFromSysfs();
       info.maxFrequencyMhz = -1;
       info.currentFrequencyMhz = -1;
       info.vram.frequencyMhz = -1;
@@ -75,8 +76,8 @@ MemoryInfo LinuxSystemInfo::GetRam()
       static const int megaByteInB = 1024 * 1024;
       info.quantityMb = hwInfo.totalram * hwInfo.mem_unit / megaByteInB;
    }
-   info.frequencyMhz = -1;
 
+   info.frequencyMhz = FindRamFrequencyFromDmiDecode();
    return info;
 }
 
@@ -213,6 +214,53 @@ int LinuxSystemInfo::FindVramQuantity(const std::vector<std::string> &glxInfoDat
    return -1;
 }
 
+int LinuxSystemInfo::FindRamFrequencyFromDmiDecode() const
+{
+   int foundFrequency = -1;
+   // Try to get RAM frequency from dmidecode
+   std::wstring output;
+   Tools::RunExternalCommandToBuffer(L"dmidecode -t memory 2>/dev/null", output);
+   if (0 == 0)
+   {
+      const std::string utf8Output = StringTools::UnicodeToUtf8(output);
+      std::vector<std::string> lines;
+      StringTools::Tokenize(utf8Output, '\n', lines);
+
+      for (const auto& line : lines)
+      {
+         static const std::string speedTag = "Speed:";
+         static const std::string configuredTag = "Configured Memory Speed:";
+
+         std::string valueStr = FindFromTag(speedTag, line);
+         if (valueStr == "")
+            valueStr = FindFromTag(configuredTag, line);
+
+         if (valueStr != "")
+         {
+            foundFrequency = std::atoi(valueStr.c_str());
+            break;
+         }
+      }
+   }
+   return foundFrequency;
+}
+
+string LinuxSystemInfo::FindFromTag(const std::string &tag, const std::string &line) const
+{
+   size_t pos = line.find(tag);
+   if (pos != std::string::npos)
+   {
+      std::string valueStr = line.substr(pos + tag.size());
+      size_t start = valueStr.find_first_of("0123456789");
+      if (start != std::string::npos)
+      {
+         size_t end = valueStr.find_first_not_of("0123456789", start);
+         return valueStr.substr(start, end - start);
+      }
+   }
+   return "";
+}
+
 std::vector<int> LinuxSystemInfo::GetNvidiaSmiValues() const
 {
    std::wstring output;
@@ -237,6 +285,34 @@ std::vector<int> LinuxSystemInfo::GetNvidiaSmiValues() const
       return outputValues;
    }
    return {-1, -1, -1, -1};
+}
+
+int LinuxSystemInfo::GetGpuMinFrequencyFromSysfs() const
+{
+   // Try common sysfs paths for GPU min frequency
+   const std::vector<std::string> possiblePaths = {
+      "/sys/class/drm/card0/gt_min_freq_mhz",
+      "/sys/class/drm/card0/gt_cur_freq_mhz",
+      "/sys/class/drm/card1/gt_min_freq_mhz",
+      "/sys/class/drm/card1/gt_cur_freq_mhz",
+      "/sys/devices/pci0000:00/0000:00:02.0/drm/card0/gt_min_freq_mhz"
+   };
+
+   for (const auto& path : possiblePaths)
+   {
+      std::ifstream file(path);
+      if (file.is_open())
+      {
+         std::string content;
+         std::getline(file, content);
+         try {
+            return std::stoi(content);
+         } catch (...) {
+            // Parse failed, try next path
+         }
+      }
+   }
+   return -1;
 }
 
 string LinuxSystemInfo::GetBiosFileInfo(const std::string &filename) const
