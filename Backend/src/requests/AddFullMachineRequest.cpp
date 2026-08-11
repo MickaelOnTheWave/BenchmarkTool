@@ -2,7 +2,7 @@
 
 #include <sqlite3.h>
 
-#include "MachineRequests.h"
+#include "MachineRequestHandler.h"
 #include "DatabaseHelpers.h"
 #include "EntityHelpers.h"
 
@@ -24,9 +24,9 @@ json AddFullMachineRequest::CreateJsonResponse(Database &db, const json &input)
 
 
    json jsonData = input.value("machine", json::object());
-   json result = MachineRequests::Create(db, jsonData);
-//   const EntityDescriptor machine = EntityHelpers::CreateMachine(jsonData);
-//   json result = DatabaseHelpers::InsertEntity(machine, jsonData, db);
+//   json result = MachineRequests::Create(db, jsonData);
+   const EntityCreateDescriptor machine = EntityHelpers::CreateMachine(jsonData);
+   json result = DatabaseHelpers::InsertEntity(machine, jsonData, db);
    if (result["status"] == "error")
       return result;
    const int machineId = result["id"];

@@ -57,6 +57,7 @@ add_executable(Backend
    src/requests/TestRequestHandler.h src/requests/TestRequestHandler.cpp
    src/requests/TestConfigRequestHandler.h src/requests/TestConfigRequestHandler.cpp
    src/requests/TypeRequestHandler.h src/requests/TypeRequestHandler.cpp
+   src/requests/ImportPlanRequest.h src/requests/ImportPlanRequest.cpp
 )
 
 target_link_libraries(Backend PRIVATE

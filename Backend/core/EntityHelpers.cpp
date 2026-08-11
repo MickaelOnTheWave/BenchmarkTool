@@ -126,6 +126,29 @@ EntityListDescriptor EntityHelpers::ListTestConfigs()
    return descriptor;
 }
 
+EntityListDescriptor EntityHelpers::ListOrigins()
+{
+   EntityListDescriptor descriptor;
+   descriptor.rootField = "origins";
+   descriptor.table = "Origin";
+   // Alias OriginType as the Name column (column 1) for the generic ListEntities mapper.
+   descriptor.selectFields = "Id, OriginType, RunId, ExternalId, SourceFile, CreatedAt";
+   descriptor.selectMapper = [](sqlite3_stmt* stmt, json& obj)
+   {
+      obj["runId"] = sqlite3_column_int(stmt, 2);
+
+      const char* externalId = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+      obj["externalId"] = externalId ? externalId : "";
+
+      const char* sourceFile = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+      obj["sourceFile"] = sourceFile ? sourceFile : "";
+
+      const char* createdAt = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
+      obj["createdAt"] = createdAt ? createdAt : "";
+   };
+   return descriptor;
+}
+
 EntityCreateDescriptor EntityHelpers::CreateMachine(const json &data)
 {
    EntityCreateDescriptor descriptor;

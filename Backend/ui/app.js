@@ -589,6 +589,7 @@ function closeMachineDialog()
 
 async function addThisMachine()
 {
+    alert("Entering AddThisMachine"));
     const response = await fetch("/api/get-local-system-info");
     const systemInfo = await response.json();
 

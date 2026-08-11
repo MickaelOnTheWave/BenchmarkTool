@@ -5,19 +5,25 @@
 
 Database::Database(const std::string& path)
 {
-   dbPath = path;
-
-   if (sqlite3_open(path.c_str(), &db) != SQLITE_OK)
-      return;
-
-   if (!IsSchemaInitialized())
-      InitSchema();
+   Open(path);
 }
 
 Database::~Database()
 {
    if (db)
       sqlite3_close(db);
+}
+
+bool Database::Open(const std::string &dbFile)
+{
+   dbPath = dbFile;
+
+   if (sqlite3_open(dbPath.c_str(), &db) != SQLITE_OK)
+      return false;
+
+   if (!IsSchemaInitialized())
+      InitSchema();
+   return true;
 }
 
 sqlite3* Database::GetHandle() const

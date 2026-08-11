@@ -9,8 +9,11 @@
 class Database
 {
 public:
+   Database() = default;
    Database(const std::string& path);
    virtual ~Database();
+
+   bool Open(const std::string& dbFile);
 
    sqlite3* GetHandle() const;
    std::optional<std::string> Execute(const std::string& sql);

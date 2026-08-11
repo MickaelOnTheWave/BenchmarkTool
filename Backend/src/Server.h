@@ -28,12 +28,13 @@ private:
    void AddApiPostHandler(const std::string& endpoint, ApiHandler handler);
    void AddApiDeleteHandler(const std::string& endpoint, ApiHandler handler);
 
-   HttpHandler CreateHttpHandler(ApiHandler handler);
+   HttpHandler CreateHttpGetHandler(ApiHandler handler);
+   HttpHandler CreateHttpPostHandler(ApiHandler handler);
 
    // Request handlers
    void DbStatusRequest(const httplib::Request& req, httplib::Response& res);
 
-   void ListOriginsRequest(const httplib::Request& req, httplib::Response& res);
+   nlohmann::json ListOriginsRequest(Database &db, const nlohmann::json &input);
    void ListBenchmarkRunsRequest(const httplib::Request& req, httplib::Response& res);
    void CreateBenchmarkRunRequest(const httplib::Request& req, httplib::Response& res);
    void DeleteBenchmarkRunRequest(const httplib::Request& req, httplib::Response& res);
@@ -41,13 +42,9 @@ private:
    void ResetDatabaseRequest(const httplib::Request& req, httplib::Response& res);
 
    void ImportFiles(const httplib::Request& req, httplib::Response& res);
-   void ExecuteImportPlan(const httplib::Request& req, httplib::Response& res);
-   void AddFullMachineRequest(const httplib::Request& req, httplib::Response& res);
+
 
    // Helpers
-   std::optional<std::string> InsertEntity(Database& db, const EntityCreateDescriptor& entity, const nlohmann::json& input);
-
-   void DeleteEntityHttp(const httplib::Request& req, httplib::Response& res, const std::string& table);
    std::optional<std::string> DeleteEntityById(const std::string& table, int id, int& affectedRows);
 
    std::string BuildSqlInsertQuery(const EntityCreateDescriptor& entity);
