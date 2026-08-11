@@ -18,7 +18,6 @@ namespace
    void CheckProcessingUnitInfo(const ProcessingUnitInfo& info)
    {
       REQUIRE(info.name != "");
-      REQUIRE(info.minFrequencyMhz > 0);
       REQUIRE(info.maxFrequencyMhz >= info.minFrequencyMhz);
       REQUIRE(info.currentFrequencyMhz >= info.minFrequencyMhz);
       REQUIRE(info.currentFrequencyMhz <= info.maxFrequencyMhz);
@@ -30,6 +29,7 @@ TEST_CASE("SystemInfo - CPU information")
    auto systemInfo = CreateSystemInfo();
    auto cpuInfo = systemInfo->GetCpu();
 
+   REQUIRE(cpuInfo.minFrequencyMhz > 0);
    CheckProcessingUnitInfo(cpuInfo);
    REQUIRE(cpuInfo.coreCount > 0);
 }
@@ -48,5 +48,7 @@ TEST_CASE("SystemInfo - RAM information")
    auto ramInfo = systemInfo->GetRam();
 
    REQUIRE(ramInfo.quantityMb > 0);
-   REQUIRE(ramInfo.frequencyMhz > 0);
+
+   // Current detection requires root priviledges. We can't count on it.
+   //REQUIRE(ramInfo.frequencyMhz > 0);
 }

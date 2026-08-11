@@ -51,6 +51,8 @@ struct OsInfo
 class ISystemInfo
 {
 public:
+   virtual ~ISystemInfo() = default;
+
    virtual CpuInfo GetCpu() = 0;
    virtual GpuInfo GetGpu() = 0;
    virtual MemoryInfo GetRam() = 0;

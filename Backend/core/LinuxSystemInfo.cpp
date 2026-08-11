@@ -48,7 +48,7 @@ GpuInfo LinuxSystemInfo::GetGpu()
    info.vendor = FindGpuVendor(glxInfoData);
    info.vram.quantityMb = FindVramQuantity(glxInfoData);
 
-   info.minFrequencyMhz = -1;
+   info.minFrequencyMhz = GetGpuMinFrequencyFromSysfs();
    if (info.vendor == "NVIDIA Corporation")
    {
       const vector<int> nvidiaSmiData = GetNvidiaSmiValues();
@@ -58,7 +58,6 @@ GpuInfo LinuxSystemInfo::GetGpu()
    }
    else
    {
-      info.minFrequencyMhz = GetGpuMinFrequencyFromSysfs();
       info.maxFrequencyMhz = -1;
       info.currentFrequencyMhz = -1;
       info.vram.frequencyMhz = -1;
@@ -292,9 +291,7 @@ int LinuxSystemInfo::GetGpuMinFrequencyFromSysfs() const
    // Try common sysfs paths for GPU min frequency
    const std::vector<std::string> possiblePaths = {
       "/sys/class/drm/card0/gt_min_freq_mhz",
-      "/sys/class/drm/card0/gt_cur_freq_mhz",
       "/sys/class/drm/card1/gt_min_freq_mhz",
-      "/sys/class/drm/card1/gt_cur_freq_mhz",
       "/sys/devices/pci0000:00/0000:00:02.0/drm/card0/gt_min_freq_mhz"
    };
 
